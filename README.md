@@ -2,23 +2,19 @@
 
 Interactive demos for learning elliptic-curve cryptography and quantum computing through visual simulation. The current app focuses on finite-field elliptic curves, discrete-log attacks, and a gate-level quantum visualization.
 
-<img width="1130" height="830" alt="ECC simulator" src="https://github.com/user-attachments/assets/2d34f9ad-bd7c-49a9-ba30-fd4e271a8a67" />
-
-<img width="1299" height="779" alt="CPhase circuit" src="https://github.com/user-attachments/assets/78dc5844-b15c-4e21-89cb-dbdccf31c6ff" />
-
-
-
-## Repository Layout
-
-- `hosting/`: Next.js static site with the ECC simulator and gate simulator.
-- `docs/`: supporting documents and workshop material.
-
-## Features
-
+## Shor's ECDLP Algorithm
 - Visualize points on the curve `y^2 = x^3 + 7 (mod p)`.
 - Explore scalar multiplication and public-key generation on small curves.
 - Compare classical discrete-log recovery strategies on toy examples.
 - Inspect a 3D visualization of measurement outcomes for the quantum demo.
+
+<img width="600" alt="ECC simulator" src="https://github.com/user-attachments/assets/2d34f9ad-bd7c-49a9-ba30-fd4e271a8a67" />
+
+## Quantum Circuit Simulator
+- [CPHASE gate circuit simulator](https://quantum.sciencevr.com/gatesim), designed based on Artur Ekert's [talks](https://www.youtube.com/watch?v=pzC4pUK8s8A&list=PLkespgaZN4gm6tZLD8rnsiENRrg6pXX4q) and Craig Gidney's [Quirk](https://github.com/Strilanc/Quirk).
+
+<img width="600" alt="CPhase circuit" src="https://github.com/user-attachments/assets/78dc5844-b15c-4e21-89cb-dbdccf31c6ff" />
+
 
 ## Quantum Algorithms Reference
 
@@ -33,6 +29,8 @@ Interactive demos for learning elliptic-curve cryptography and quantum computing
 | Grover's | 1996 | Unstructured search | Amplitude amplification | Quadratic (`sqrt(N)`) |
 | Cleve et al. (Revisited) | 1998 | Unified framework | Deterministic phase kickback | The circuit model |
 | Shor's (ECDLP) | Later | Find `k` in `P = kQ` | 2D QFT over elliptic curves | Elliptic curve group |
+
+
 
 ## Requirements
 
