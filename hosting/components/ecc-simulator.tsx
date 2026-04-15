@@ -206,7 +206,7 @@ export function EccSimulatorPage() {
 
   // Remote Shor (Mersenne) run settings
   const [phaseRegisterQubits, setPhaseRegisterQubits] = useState<string>("auto");
-  const [shots, setShots] = useState<string>("1024");
+  const [shots, setShots] = useState<string>("10000");
 
   const logRef = useRef<string[]>([]);
   const qpuLogTextRef = useRef<string>("");
@@ -291,7 +291,7 @@ export function EccSimulatorPage() {
 
     // Reset remote run settings when changing curves.
     setPhaseRegisterQubits("auto");
-    setShots("1024");
+    setShots("10000");
 
     const mersenne = sel.field === "mersenne";
     if (mersenne) setStatus(`Selected curve is ready (p is a prime).`);
@@ -332,7 +332,7 @@ export function EccSimulatorPage() {
 
   const effectiveShots = useMemo(() => {
     const parsed = Number(shots);
-    if (!Number.isFinite(parsed) || parsed <= 0) return 1024;
+    if (!Number.isFinite(parsed) || parsed <= 0) return 10000;
     return Math.min(1_000_000, Math.max(1, Math.floor(parsed)));
   }, [shots]);
 
@@ -928,7 +928,7 @@ export function EccSimulatorPage() {
             measurement_counts: counts as Record<string, number>,
             control_qubits_A: Number.isFinite(controlA) ? controlA : undefined,
             control_qubits_B: Number.isFinite(controlB) ? controlB : undefined,
-            shots: Number(result?.shots ?? data?.shots ?? 1024),
+            shots: Number(result?.shots ?? data?.shots ?? 10000),
             secret_k: secretK,
             recovered_k: recoveredK ?? undefined,
             curve_parameters: {
