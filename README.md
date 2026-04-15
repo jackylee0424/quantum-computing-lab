@@ -20,14 +20,14 @@ Interactive demos for learning elliptic-curve cryptography and quantum computing
 
 | Algorithm / Paper | Year | Problem Solved | Key Innovation | Math / Group Structure |
 | --- | --- | --- | --- | --- |
-| Deutsch (6 lectures) | 1985 | Is `f(0) = f(1)`? | First quantum parallelism | `Z2` |
+| Deutsch [(6 lectures)](https://www.youtube.com/watch?v=mpkYPEaifUg&list=PLqdVnC7OWuEcfKRZXsrooK_EPzwmWSi-N) | 1985 | Is `f(0) = f(1)`? | First quantum parallelism | `Z2` |
 | Deutsch-Jozsa | 1992 | Constant vs. balanced | Exponential speedup | `Z2^n` |
 | Bernstein-Vazirani | 1993 | Find bitstring `s` | Single-shot string extraction | `Z2^n` (linear) |
 | Simon's | 1994 | Find XOR period `s` | Hidden subgroup approach | `Z2^n` (group) |
 | Shor's (Discrete Log) | 1994 | `g^x ≡ a (mod p)` | QFT for 2D periods | `Z_(p-1) × Z_(p-1)` |
 | Shor's (Factoring) | 1994 | Factors of `N` | Order-finding to factoring | `Z_r ⊂ Z_N` |
 | Grover's | 1996 | Unstructured search | Amplitude amplification | Quadratic (`sqrt(N)`) |
-| Cleve et al. (Revisited) | 1998 | Unified framework | Deterministic phase kickback | The circuit model |
+| Cleve et al. | 1998 | Unified framework | Deterministic phase kickback | The circuit model |
 | Shor's (ECDLP) | Later | Find `k` in `P = kQ` | 2D QFT over elliptic curves | Elliptic curve group |
 
 
