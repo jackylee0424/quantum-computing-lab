@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { EccControlsPanel } from "@/components/ecc-controls-panel";
 import { Ecc3DVisualization, type MeasurementFile } from "@/components/ecc-3d-visualization";
 import {
   INF_POINT as INF,
@@ -23,6 +24,15 @@ import {
   sqrtModP3Mod4,
   type CurvePoint,
 } from "@/lib/ecc";
+import {
+  buildPredefinedCurves,
+  controlQubitBoundsForP,
+  optionLabelForCurve,
+  quantumEstimates,
+  recommendedControlQubitsForOrder,
+  shorEstimates,
+  type PredefinedCurve,
+} from "@/lib/curves";
 
 function bsgsDiscreteLog(target: CurvePoint, base: CurvePoint, n: number, p: number, dbg?: (msg: string) => void): { k: number | null; m: number } {
   if (target.inf) return { k: 0, m: 1 };
@@ -159,228 +169,9 @@ function computePointOrder(P: CurvePoint | null | undefined, p: number): number 
   return null;
 }
 
-const CURVE_CANDIDATES_BY_ORDER = {
-  "1023": [
-    {
-      base_point: [698, 1568],
-      order: 1023,
-      p: 4091,
-    },
-  ],
-  "1048575": [
-    {
-      base_point: [4530570, 6223415],
-      order: 1048575,
-      p: 6291449,
-    },
-  ],
-  "127": [
-    {
-      base_point: [1, 32],
-      order: 127,
-      p: 127,
-      field: "mersenne",
-    },
-  ],
-  "130719": [
-    {
-      base_point: [3, 107193],
-      order: 130719,
-      p: 131071,
-      field: "mersenne",
-    },
-  ],
-  "16383": [
-    {
-      base_point: [59274, 10901],
-      order: 16383,
-      p: 65239,
-    },
-  ],
-  "2047": [
-    {
-      base_point: [3170, 10848],
-      order: 2047,
-      p: 12281,
-    },
-  ],
-  "255": [
-    {
-      base_point: [165, 35],
-      order: 255,
-      p: 509,
-    },
-  ],
-  "262143": [
-    {
-      base_point: [1026048, 667569],
-      order: 262143,
-      p: 1048571,
-    },
-  ],
-  "21": [
-    {
-      base_point: [1, 16],
-      order: 21,
-      p: 31,
-      field: "mersenne",
-    },
-  ],
-  "32767": [
-    {
-      base_point: [94333, 113222],
-      order: 32767,
-      p: 131779,
-    },
-  ],
-  "4095": [
-    {
-      base_point: [35218, 17097],
-      order: 4095,
-      p: 40949,
-    },
-  ],
-  "511": [
-    {
-      base_point: [730, 415],
-      order: 511,
-      p: 1567
-    },
-  ],
-  "522847": [
-    {
-      base_point: [1, 2048],
-      order: 522847,
-      p: 524287,
-      field: "mersenne",
-    },
-  ],
-  "63": [
-    {
-      base_point: [145, 194],
-      order: 63,
-      p: 251,
-    },
-  ],
-  "65535": [
-    {
-      base_point: [116665, 37319],
-      order: 65535,
-      p: 262139,
-    },
-  ],
-  "8011": [
-    {
-      base_point: [1, 256],
-      order: 8011,
-      p: 8191,
-      field: "mersenne",
-    },
-  ],
-  "2147444533": [
-    {
-      base_point: [1, 131072],
-      order: 2147444533,
-      p: 2147483647,
-      field: "mersenne",
-    },
-  ],
-};
-
-let PREDEFINED_CURVES: any[] = [];
-
-function normalizeCurveCandidate(candidate: any, nKey: string): any {
-  const n = Number(candidate?.order ?? nKey);
-  const p = Number(candidate?.p);
-  const curveOrder = Number(candidate?.curve_size ?? candidate?.order ?? n);
-  const base = candidate?.base_point;
-  const gx = Number(Array.isArray(base) ? base[0] : NaN);
-  const gy = Number(Array.isArray(base) ? base[1] : NaN);
-  const h =
-    Number.isFinite(curveOrder) && Number.isFinite(n) && n > 0
-      ? Math.floor(curveOrder / n)
-      : 1;
-  const field = candidate?.field;
-
-  if (!Number.isFinite(n) || n <= 1) return null;
-  if (!Number.isFinite(p) || p <= 2) return null;
-  if (!Number.isFinite(gx) || !Number.isFinite(gy)) return null;
-
-  return { n, p, order: curveOrder, h, G: { x: gx, y: gy }, field };
-}
-
-function buildPredefinedCurves(): any[] {
-  const curves = [];
-  const seen = new Set();
-
-  for (const [nKey, arr] of Object.entries(CURVE_CANDIDATES_BY_ORDER)) {
-    if (!Array.isArray(arr)) continue;
-    for (const cand of arr) {
-      const curve = normalizeCurveCandidate(cand, nKey);
-      if (!curve) continue;
-      const key = `${curve.n}|${curve.p}|${curve.G.x}|${curve.G.y}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      curves.push(curve);
-    }
-  }
-
-  curves.sort((a, b) => a.n - b.n || a.p - b.p);
-  return curves;
-}
-
-function optionLabelForCurve(c: any): string {
-  const kBits = bitLength((c.n - 1) >>> 0);
-  return `${kBits}-bit k, n=${c.n}, y²=x³+7 mod ${c.p}`;
-}
-
 function fmtPoint(P: any): string {
   if (P.inf) return "INF";
   return `(${P.x}, ${P.y})`;
-}
-
-function quantumEstimates(n: number): any {
-  const s = bitLength(n);
-  const sqrtN = Math.ceil(Math.sqrt(n));
-  const n13 = Math.ceil(Math.pow(n, 1 / 3));
-
-  return {
-    s,
-    classical: {
-      bruteOps: n,
-      bsgsOps: 2 * sqrtN,
-      pollardOps: sqrtN,
-    },
-    quantum: {
-      groverBruteOps: sqrtN,
-      collisionOps_n13: n13,
-    },
-  };
-}
-
-function shorEstimates({ n, p }: { n: number; p: number }): any {
-  const s = bitLength(n);
-  const lp = bitLength(p);
-
-  const logicalQubits = 2 * s + 8 * lp + 20;
-
-  const toffoli = Math.round(40 * s * Math.pow(lp, 3));
-  const tDepth = Math.round(12 * s * Math.pow(lp, 2));
-
-  return { s, lp, logicalQubits, toffoli, tDepth };
-}
-
-function controlQubitBoundsForP(p: number): { min: number; max: number } {
-  if (p === 31) return { min: 3, max: 5 };
-  if (p === 127) return { min: 3, max: 7 };
-  if (p === 8191) return { min: 3, max: 10 };
-  return { min: 3, max: 10 };
-}
-
-function recommendedControlQubitsForOrder(order: number): number {
-  if (!Number.isFinite(order) || order <= 1) return 3;
-  // UI hint only: recommended phase-register size ~ ceil(log2(n)) + 1
-  return Math.max(3, Math.ceil(Math.log2(order)) + 1);
 }
 
 export function EccSimulatorPage() {
@@ -407,7 +198,7 @@ export function EccSimulatorPage() {
   const [showWarningsTitle, setShowWarningsTitle] = useState(false);
   const [showResultsTitle, setShowResultsTitle] = useState(true);
   const [orderSelect, setOrderSelect] = useState("");
-  const [predefinedCurves, setPredefinedCurves] = useState<any[]>([]);
+  const [predefinedCurves, setPredefinedCurves] = useState<PredefinedCurve[]>([]);
   const [visualizationGenerator, setVisualizationGenerator] = useState<any>(null);
   const [visualizationOrder, setVisualizationOrder] = useState<number | null>(null);
   const [measurementFile, setMeasurementFile] = useState<MeasurementFile | null>(null);
@@ -1511,127 +1302,37 @@ export function EccSimulatorPage() {
                 and run k-recovery routines. </span>
               </div>
           </section>
-          <section className="card mt-3">
-            <div className="row">
-              <div>
-                
-                <label htmlFor="orderSelect">Select subgroup order n (predefined)</label>
-                <select id="orderSelect" value={orderSelect} onChange={handleOrderSelectChange}>
-                  {predefinedCurves.map((c, index) => (
-                    <option key={c.n} value={c.n} disabled={c.n > 31}>{optionLabelForCurve(c)}</option>
-                  ))}
-                </select>
-              </div>
-               <div id="status" className="sub" style={{ margin: "10px" }}>{status}</div>
-            </div>
-           
-          </section>
-
-          {showKeyArea && (
-            <div id="keyArea" className="card" style={{ marginTop: "12px", textAlign: "left" }}>
-              {/* <h3>Elliptic curve</h3>
-              <div id="selectedInfo" className="mono muted">{selectedInfo}</div> */}
-              {/* <div className="sep"></div> */}
-              <div className="three">
-                <div>
-                  <h3>Specify a public point (public key)</h3>
-                  <label htmlFor="phaseRegisterQubits">Generate public point (Q = kG) or use manual Q (x,y)</label>
-                  <div className="row">
-                    <div>
-                      <select id="qMode" value={qMode} onChange={handleQModeChange} className="resp-w" style={{ color: "#2563eb" }}>
-                        <option value="k">Generate Q = kG</option>
-                        <option value="manual">Manual Q (x,y)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {qMode === "k" && (
-                    <div className="row" id="fromKRow" style={{ marginTop: "10px" }}>
-                      <div>
-                        <label htmlFor="kInput">Choose secret k (1 &lt; k &lt; n)</label>
-                        <input className="resp-w" style={{ color: "#2563eb" }} id="kInput" inputMode="numeric" placeholder="Enter k" value={kInput} onChange={handleKInputChange} />
-                      </div>
-                      <button id="pubBtn" className="resp-w" style={{ color: "#2563eb" }} onClick={handlePubBtnClick} disabled={isComputingPublicQ}>Generate public point (Q=kG)</button>
-                    </div>
-                  )}
-                  {qMode === "manual" && (
-                    <div className="row" id="manualQRow" style={{ marginTop: "10px" }}>
-                      <div>
-                        <label htmlFor="qXInput">Q.x (0 = x &lt; p)</label>
-                        <input className="resp-w" style={{ color: "#2563eb" }} id="qXInput" inputMode="numeric" placeholder="Enter x" value={qXInput} onChange={handleQXInputChange} />
-                      </div>
-                      <div>
-                        <label htmlFor="qYInput">Q.y (0 = y &lt; p)</label>
-                        <input className="resp-w" style={{ color: "#2563eb" }} id="qYInput" inputMode="numeric" placeholder="Enter y" value={qYInput} onChange={handleQYInputChange} />
-                      </div>
-                      <button id="setQBtn" className="resp-w" style={{ color: "#2563eb" }} onClick={handleSetQBtnClick}>Use manual Q</button>
-                    </div>
-                  )}
-
-                  <div id="pubInfo" className="mono" style={{ marginTop: "10px" }}>{pubInfo}</div>
-                  <div className="sep"></div>
-                  {showRecover && <button id="recoverBtn" className="resp-w" style={{ color: "#2563eb" }} onClick={handleRecoverClick} disabled={isRecoveringK}>Recover k</button>}
-                </div>
-
-                {selected.p === 31 && <div>
-                  <h3>Shor's Algorithm Phase Registers (a/b qubits)</h3>
-                  <div className="row">
-                    <div>
-                      <label htmlFor="phaseRegisterQubits">Control qubits (A=B)</label>
-                      <select
-                        id="phaseRegisterQubits"
-                        value={phaseRegisterQubits}
-                        onChange={handlePhaseRegisterQubitsChange}
-                        disabled={isRemoteMersenneTaskActive}
-                      >
-                        <option value="auto">
-                          Auto
-                          {selected ? ` (${recommendedPhaseRegisterQubits} control qubits)` : ""}
-                        </option>
-                        {selected && (
-                          <option value="__recommended" disabled>
-                            Recommended: {recommendedPhaseRegisterQubits} (ceil(log2(n))+1)
-                          </option>
-                        )}
-                        {Array.from({ length: 8 }, (_, i) => 3 + i).map((v) => (
-                          <option
-                            key={v}
-                            value={String(v)}
-                            disabled={v < phaseRegisterBounds.min || v > phaseRegisterBounds.max}
-                          >
-                            {v} control qubits
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  </div>}
-
-                {selected.p === 31 && <div>
-                  <h3>Measurements/Shots</h3>
-                  <div className="row">
-                    <div>
-                      <label htmlFor="shotsSelect">Number of shots</label>
-                      <select
-                        id="shotsSelect"
-                        value={shots}
-                        onChange={handleShotsChange}
-                        disabled={isRemoteMersenneTaskActive}
-                      >
-                        <option value="10000">10000</option>
-                        <option value="2048">2048</option>
-                        <option value="1024">1024</option>
-                        <option value="1000">1000</option>
-                        <option value="100">100</option>
-                        <option value="10">10</option>
-                        <option value="1">1</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>}
-              </div>
-            </div>
-          )}
+          <EccControlsPanel
+            status={status}
+            orderSelect={orderSelect}
+            predefinedCurves={predefinedCurves}
+            showKeyArea={showKeyArea}
+            qMode={qMode}
+            kInput={kInput}
+            qXInput={qXInput}
+            qYInput={qYInput}
+            pubInfo={pubInfo}
+            showRecover={showRecover}
+            isComputingPublicQ={isComputingPublicQ}
+            isRecoveringK={isRecoveringK}
+            selected={selected}
+            phaseRegisterQubits={phaseRegisterQubits}
+            recommendedPhaseRegisterQubits={recommendedPhaseRegisterQubits}
+            phaseRegisterBounds={phaseRegisterBounds}
+            shots={shots}
+            isRemoteMersenneTaskActive={isRemoteMersenneTaskActive}
+            onOrderSelectChange={handleOrderSelectChange}
+            onQModeChange={handleQModeChange}
+            onKInputChange={handleKInputChange}
+            onQXInputChange={handleQXInputChange}
+            onQYInputChange={handleQYInputChange}
+            onPubBtnClick={handlePubBtnClick}
+            onSetQBtnClick={handleSetQBtnClick}
+            onRecoverClick={handleRecoverClick}
+            onPhaseRegisterQubitsChange={handlePhaseRegisterQubitsChange}
+            onShotsChange={handleShotsChange}
+            optionLabelForCurve={optionLabelForCurve}
+          />
 
           {showVisualization && (
             <div className="card" style={{ marginTop: "12px", textAlign: "left" }}>
