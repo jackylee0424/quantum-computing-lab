@@ -2,6 +2,12 @@
 
 Interactive demos for learning elliptic-curve cryptography and quantum computing through visual simulation. The current app focuses on finite-field elliptic curves, discrete-log attacks, and a gate-level quantum visualization.
 
+<img width="1130" height="830" alt="ECC simulator" src="https://github.com/user-attachments/assets/2d34f9ad-bd7c-49a9-ba30-fd4e271a8a67" />
+
+<img width="1299" height="779" alt="CPhase circuit" src="https://github.com/user-attachments/assets/78dc5844-b15c-4e21-89cb-dbdccf31c6ff" />
+
+
+
 ## Repository Layout
 
 - `hosting/`: Next.js static site with the ECC simulator and gate simulator.
