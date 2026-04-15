@@ -14,6 +14,20 @@ Interactive demos for learning elliptic-curve cryptography and quantum computing
 - Compare classical discrete-log recovery strategies on toy examples.
 - Inspect a 3D visualization of measurement outcomes for the quantum demo.
 
+## Quantum Algorithms Reference
+
+| Algorithm / Paper | Year | Problem Solved | Key Innovation | Math / Group Structure |
+| --- | --- | --- | --- | --- |
+| Deutsch (6 lectures) | 1985 | Is `f(0) = f(1)`? | First quantum parallelism | `Z2` |
+| Deutsch-Jozsa | 1992 | Constant vs. balanced | Exponential speedup | `Z2^n` |
+| Bernstein-Vazirani | 1993 | Find bitstring `s` | Single-shot string extraction | `Z2^n` (linear) |
+| Simon's | 1994 | Find XOR period `s` | Hidden subgroup approach | `Z2^n` (group) |
+| Shor's (Discrete Log) | 1994 | `g^x ≡ a (mod p)` | QFT for 2D periods | `Z_(p-1) × Z_(p-1)` |
+| Shor's (Factoring) | 1994 | Factors of `N` | Order-finding to factoring | `Z_r ⊂ Z_N` |
+| Grover's | 1996 | Unstructured search | Amplitude amplification | Quadratic (`sqrt(N)`) |
+| Cleve et al. (Revisited) | 1998 | Unified framework | Deterministic phase kickback | The circuit model |
+| Shor's (ECDLP) | Later | Find `k` in `P = kQ` | 2D QFT over elliptic curves | Elliptic curve group |
+
 ## Requirements
 
 - Node.js `>=20.9.0`
