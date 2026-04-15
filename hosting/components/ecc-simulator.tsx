@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { EccControlsPanel } from "@/components/ecc-controls-panel";
+import { LoadingToast } from "@/components/loading-toast";
 import { EccResultsPanel } from "@/components/ecc-results-panel";
 import { EccVisualizationPanel } from "@/components/ecc-visualization-panel";
 import type { MeasurementFile } from "@/components/ecc-3d-visualization";
@@ -205,6 +206,7 @@ export function EccSimulatorPage() {
   const [visualizationOrder, setVisualizationOrder] = useState<number | null>(null);
   const [measurementFile, setMeasurementFile] = useState<MeasurementFile | null>(null);
   const [isRemoteMersenneTaskActive, setIsRemoteMersenneTaskActive] = useState(false);
+  const [loadingToastMessage, setLoadingToastMessage] = useState("");
 
   // Remote Shor (Mersenne) run settings
   const [phaseRegisterQubits, setPhaseRegisterQubits] = useState<string>("auto");
@@ -441,6 +443,14 @@ export function EccSimulatorPage() {
     setShowWarningsTitle(false);
     setShowResultsTitle(true);
   };
+
+  const hideLoadingToast = useCallback(() => {
+    setLoadingToastMessage("");
+  }, []);
+
+  const showLoadingToast = useCallback((message: string) => {
+    setLoadingToastMessage(message);
+  }, []);
 
   const resetPublicQUI = ({ resetResults = true } = {}) => {
     if (isComputingPublicQ || isRecoveringK) return;
@@ -903,6 +913,16 @@ export function EccSimulatorPage() {
       setWarningsResults(statusHtml);
       setShowWarningsTitle(true);
 
+      if (!didSetMeasurement) {
+        if (status === "QUEUED" && queuePosition !== undefined && queuePosition !== null) {
+          showLoadingToast(`Recover-k request submitted. Waiting for server response and measurement data for the 3D animation. Queue position: ${queuePosition}.`);
+        } else if (status === "RUNNING") {
+          showLoadingToast("Recover-k request submitted. Waiting for the server to finish and return measurement data for the 3D animation.");
+        } else if (status && status !== "COMPLETED" && status !== "FAILED") {
+          showLoadingToast(`Recover-k request submitted. Current status: ${status}. Waiting for measurement data to render the 3D animation.`);
+        }
+      }
+
       // If the backend includes measurement counts inline, use them to drive the 3D measurement animation.
       // (This replaces the manual drop-zone workflow for live runs.)
       if (status === "COMPLETED" && result && !didSetMeasurement) {
@@ -944,16 +964,19 @@ export function EccSimulatorPage() {
 
           setMeasurementFile(measurement);
           didSetMeasurement = true;
+          hideLoadingToast();
         }
       }
 
       if (status === "COMPLETED" || status === "FAILED") {
+        if (!didSetMeasurement) hideLoadingToast();
         await drainFinalLogs(status);
         break;
       }
 
       if (Date.now() - startedAt > timeoutMs) {
         appendQpuLog("Polling timeout reached; stopping updates.");
+        hideLoadingToast();
         break;
       }
 
@@ -971,6 +994,7 @@ export function EccSimulatorPage() {
     setWarningsResults(
       "<div><b>Remote Shor (prime field)</b></div><div class=\"mono\">Status: SUBMITTING</div>",
     );
+    showLoadingToast("Submitting recover-k request to the server. Waiting for acceptance before the 3D animation can load.");
     appendQpuLog("Submitting remote Shor prime field task...");
 
     const order = Number(effectiveCurveParams?.n ?? selected.n);
@@ -1021,10 +1045,12 @@ export function EccSimulatorPage() {
       const taskId = submission?.taskId;
       if (!taskId) {
         appendQpuLog("Missing taskId in response.");
+        hideLoadingToast();
         return;
       }
 
       appendQpuLog(`Task submitted: ${taskId}`);
+      showLoadingToast("Recover-k request submitted. Waiting for the full server response and measurement data for the 3D animation.");
       await pollMersenneTask(taskId);
     } catch (err) {
       const msg = `Submission error: ${String(err)}`;
@@ -1032,8 +1058,10 @@ export function EccSimulatorPage() {
       setWarningsResults(
         `<div><b>Remote Shor (prime field)</b></div><div class="bad">${msg}</div>`,
       );
+      hideLoadingToast();
     } finally {
       setIsRemoteMersenneTaskActive(false);
+      hideLoadingToast();
     }
   };
 
@@ -1198,8 +1226,10 @@ export function EccSimulatorPage() {
 #ecdlpOverlay0 .history-table th, #ecdlpOverlay0 .history-table td { border: 1px solid #d0d4e0; padding: 8px 10px; vertical-align: top; text-align: left; }
 #ecdlpOverlay0 .history-table th { background: rgba(37, 99, 235, 0.08); color: #1e3a8a; font-weight: 700; }
 #ecdlpOverlay0 .history-table td { background: rgba(255, 255, 255, 0.72); }
+@keyframes eccToastSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         `}
       </style>
+      <LoadingToast visible={!!loadingToastMessage} message={loadingToastMessage} />
       <div id="ecdlpOverlay0">
         <header>
           <div className="ecdlpTopRow">
