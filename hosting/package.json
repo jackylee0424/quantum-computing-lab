@@ -1,0 +1,35 @@
+{
+  "name": "quantum-computing-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Interactive visualizations for elliptic-curve cryptography and quantum computing concepts.",
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "typecheck": "tsc --noEmit",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@react-three/drei": "10.7.7",
+    "@react-three/fiber": "9.6.0",
+    "@vercel/analytics": "2.0.1",
+    "next": "16.2.3",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "three": "0.183.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.2.2",
+    "@types/node": "25.6.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "postcss": "8.5.10",
+    "tailwindcss": "4.2.2",
+    "tw-animate-css": "1.4.0",
+    "typescript": "6.0.2"
+  }
+}

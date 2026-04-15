@@ -1,0 +1,583 @@
+/* Gate Simulator — shadcn-ish dark theme (scoped to .gatesim-page) */
+.gatesim-page {
+  --gs-background: 222 84% 5%;
+  --gs-foreground: 210 40% 98%;
+  --gs-muted: 217 33% 17%;
+  --gs-muted-foreground: 215 20% 65%;
+  --gs-card: 222 84% 6%;
+  --gs-card-foreground: 210 40% 98%;
+  --gs-border: 217 33% 17%;
+  --gs-input: 217 33% 17%;
+  --gs-ring: 217 91% 60%;
+  --gs-primary: 217 91% 60%;
+  --gs-primary-foreground: 210 40% 98%;
+  --gs-secondary: 217 33% 17%;
+  --gs-secondary-foreground: 210 40% 98%;
+  --gs-accent: 187 100% 50%;
+  --gs-accent-2: 290 100% 70%;
+  --gs-shadow: 0 0% 0%;
+  --gs-radius: 12px;
+
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: hsl(var(--gs-background));
+  color: hsl(var(--gs-foreground));
+  overflow: hidden;
+  height: 100vh;
+  margin: 0;
+}
+
+.gatesim-page * { box-sizing: border-box; }
+.gatesim-page a { color: inherit; text-decoration: none; }
+
+/* Layout */
+.gatesim-page .gs-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.gatesim-page .gs-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(12px);
+  background: linear-gradient(
+    to bottom,
+    hsla(var(--gs-background) / 0.9),
+    hsla(var(--gs-background) / 0.55)
+  );
+  border-bottom: 1px solid hsla(var(--gs-border) / 0.7);
+}
+
+.gatesim-page .gs-container {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.gatesim-page .bg3d { pointer-events: auto; }
+.gatesim-page .gs-hud { pointer-events: auto; }
+
+.gatesim-page .gs-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  gap: 12px;
+}
+
+.gatesim-page .gs-nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gatesim-page .gs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.gatesim-page .gs-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 30% 30%, hsl(var(--gs-accent)) 0%, transparent 55%),
+    radial-gradient(circle at 70% 70%, hsl(var(--gs-accent-2)) 0%, transparent 50%),
+    linear-gradient(135deg, hsla(var(--gs-primary) / 0.35), hsla(var(--gs-background) / 0.2));
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  box-shadow: 0 10px 30px hsla(var(--gs-shadow) / 0.25);
+}
+
+.gatesim-page .gs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  background: hsla(var(--gs-card) / 0.55);
+  color: hsla(var(--gs-muted-foreground) / 1);
+  font-size: 12px;
+}
+
+.gatesim-page .gs-pill .gs-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: hsl(var(--gs-accent));
+  box-shadow: 0 0 16px hsla(var(--gs-accent) / 0.7);
+}
+
+.gatesim-page .gs-main {
+  position: relative;
+  padding: 0;
+}
+
+/* HUD layout */
+.gatesim-page .gs-hud {
+  position: fixed;
+  left: 16px;
+  top: 76px;
+  bottom: 16px;
+  width: min(33vw, 560px);
+  z-index: 3;
+  overflow: auto;
+  padding-right: 8px;
+}
+
+@media (max-width: 940px) {
+  .gatesim-page .gs-hud {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    top: 70px;
+    bottom: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .gatesim-page .gs-header .gs-nav { padding: 10px 0; }
+  .gatesim-page .gs-pill { display: none; }
+  .gatesim-page .gs-footer { display: none; }
+  .gatesim-page .gs-hud {
+    top: 62px;
+    bottom: 12px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100vh - 62px - 12px);
+  }
+  .gatesim-page .gs-hero-left { padding: 18px; }
+  .gatesim-page .gs-grid { grid-template-columns: 1fr; }
+  .gatesim-page .gs-chat {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(560px, calc(100vw - 24px));
+    bottom: 12px;
+  }
+  .gatesim-page .gs-chat-log { height: 180px; }
+}
+
+.gatesim-page .gs-hud .gs-card.gs-hero-left {
+  background: linear-gradient(180deg, hsla(var(--gs-card) / 0.68), hsla(var(--gs-card) / 0.40));
+  backdrop-filter: blur(10px);
+}
+
+.gatesim-page .gs-card {
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  background: linear-gradient(
+    180deg,
+    hsla(var(--gs-card) / 0.75),
+    hsla(var(--gs-card) / 0.45)
+  );
+  border-radius: var(--gs-radius);
+  box-shadow:
+    0 20px 60px hsla(var(--gs-shadow) / 0.45),
+    inset 0 1px 0 hsla(0 0% 100% / 0.04);
+  overflow: hidden;
+}
+
+.gatesim-page .gs-hero-left {
+  padding: 26px;
+  position: relative;
+}
+
+.gatesim-page .gs-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: hsla(var(--gs-muted-foreground) / 1);
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  background: hsla(var(--gs-background) / 0.35);
+  padding: 8px 10px;
+  border-radius: 999px;
+  user-select: none;
+}
+
+.gatesim-page .gs-kicker svg { opacity: 0.9; }
+
+.gatesim-page h1 {
+  margin: 14px 0 10px;
+  font-size: clamp(30px, 4.4vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.gatesim-page .gs-grad {
+  background: linear-gradient(90deg, hsl(var(--gs-accent)) 0%, hsl(var(--gs-primary)) 40%, hsl(var(--gs-accent-2)) 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: saturate(1.12);
+}
+
+.gatesim-page .gs-lead {
+  margin: 0;
+  color: hsla(var(--gs-muted-foreground) / 1);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 58ch;
+}
+
+.gatesim-page .gs-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  align-items: center;
+}
+
+.gatesim-page .gs-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  user-select: none;
+}
+
+.gatesim-page .gs-btn:active { transform: translateY(1px); }
+
+.gatesim-page .gs-btn-primary {
+  background: hsl(var(--gs-primary));
+  color: hsl(var(--gs-primary-foreground));
+  box-shadow: 0 18px 40px hsla(var(--gs-primary) / 0.18);
+}
+
+.gatesim-page .gs-btn-primary:hover { box-shadow: 0 18px 52px hsla(var(--gs-primary) / 0.22); }
+
+.gatesim-page .gs-btn-ghost {
+  background: hsla(var(--gs-background) / 0.12);
+  border-color: hsla(var(--gs-border) / 0.95);
+  color: hsl(var(--gs-foreground));
+}
+
+.gatesim-page .gs-btn-ghost:hover { background: hsla(var(--gs-background) / 0.22); }
+
+.gatesim-page .gs-mini {
+  font-size: 12px;
+  color: hsla(var(--gs-muted-foreground) / 1);
+}
+
+/* Fullscreen WebGL background */
+.gatesim-page .gs-bg3d {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: hsl(var(--gs-background));
+}
+
+.gatesim-page .gs-bg3d canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gatesim-page .gs-bg3d .gs-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 420px at 25% 15%, hsla(var(--gs-accent) / 0.12), transparent 60%),
+    radial-gradient(900px 520px at 80% 70%, hsla(var(--gs-accent-2) / 0.10), transparent 62%),
+    linear-gradient(to bottom, transparent, hsla(var(--gs-background) / 0.55));
+}
+
+.gatesim-page .gs-bg3d .gs-webgl-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  text-align: center;
+  color: rgba(226,232,240,0.9);
+  font-size: 13px;
+  line-height: 1.5;
+  background: radial-gradient(900px 520px at 25% 15%, rgba(56,189,248,0.10), transparent 60%),
+              radial-gradient(900px 520px at 80% 70%, rgba(232,121,249,0.08), transparent 62%);
+  pointer-events: none;
+}
+
+.gatesim-page .gs-bg3d .gs-webgl-fallback[hidden] { display: none !important; }
+
+/* Ensure content overlays the background */
+.gatesim-page .gs-header,
+.gatesim-page .gs-main,
+.gatesim-page .gs-footer { position: relative; z-index: 2; }
+
+.gatesim-page .gs-header,
+.gatesim-page .gs-footer,
+.gatesim-page .gs-main { pointer-events: none; }
+
+.gatesim-page .gs-header .gs-nav,
+.gatesim-page .gs-footer .gs-footer-row,
+.gatesim-page .gs-hud { pointer-events: auto; }
+
+.gatesim-page .gs-panel-head {
+  padding: 14px 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid hsla(var(--gs-border) / 0.8);
+}
+
+.gatesim-page .gs-panel-title {
+  font-size: 13px;
+  color: hsla(var(--gs-muted-foreground) / 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gatesim-page .gs-badge {
+  font-size: 11px;
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: hsla(var(--gs-background) / 0.16);
+  color: hsla(var(--gs-muted-foreground) / 1);
+  user-select: none;
+}
+
+.gatesim-page canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+/* Sections */
+.gatesim-page .gs-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Concept pills */
+.gatesim-page .gs-concept {
+  display: inline-block;
+  font-weight: 650;
+  color: hsl(var(--gs-foreground));
+  background: linear-gradient(90deg, hsla(var(--gs-accent) / 0.22), hsla(var(--gs-primary) / 0.18));
+  border: 1px solid hsla(var(--gs-border) / 0.85);
+  padding: 0px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.gatesim-page .gs-concept:hover {
+  border-color: hsla(var(--gs-ring) / 0.75);
+  box-shadow: 0 0 0 3px hsla(var(--gs-ring) / 0.12);
+}
+
+/* Chat widget */
+.gatesim-page .gs-chat {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(420px, calc(100vw - 32px));
+  z-index: 5;
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  border-radius: 14px;
+  overflow: hidden;
+  background: hsla(var(--gs-card) / 0.65);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 70px hsla(var(--gs-shadow) / 0.55);
+}
+
+.gatesim-page .gs-iconbtn {
+  appearance: none;
+  border: 1px solid hsla(var(--gs-border) / 0.9);
+  background: hsla(var(--gs-background) / 0.20);
+  color: hsla(var(--gs-muted-foreground) / 1);
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+}
+
+.gatesim-page .gs-iconbtn:hover {
+  border-color: hsla(var(--gs-ring) / 0.75);
+  box-shadow: 0 0 0 3px hsla(var(--gs-ring) / 0.12);
+}
+
+.gatesim-page .gs-iconbtn[aria-pressed="true"] {
+  color: hsl(var(--gs-foreground));
+  background: hsla(var(--gs-primary) / 0.16);
+  border-color: hsla(var(--gs-primary) / 0.42);
+}
+
+.gatesim-page .gs-chat[hidden] { display: none !important; }
+.gatesim-page .gs-hud[hidden] { display: none !important; }
+
+/* Chat markdown */
+.gatesim-page .gs-chat-msg a { color: hsl(var(--gs-accent)); text-decoration: underline; }
+.gatesim-page .gs-chat-msg code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  background: rgba(2,6,23,0.35);
+  border: 1px solid hsla(var(--gs-border) / 0.85);
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+.gatesim-page .gs-chat-msg pre {
+  margin: 0;
+  padding: 10px;
+  background: rgba(2,6,23,0.35);
+  border: 1px solid hsla(var(--gs-border) / 0.85);
+  border-radius: 12px;
+  overflow: auto;
+  white-space: pre;
+}
+.gatesim-page .gs-chat-msg ul { margin: 6px 0 0 18px; padding: 0; }
+.gatesim-page .gs-chat-msg li { margin: 2px 0; }
+.gatesim-page .gs-chat-msg h1,
+.gatesim-page .gs-chat-msg h2,
+.gatesim-page .gs-chat-msg h3,
+.gatesim-page .gs-chat-msg h4,
+.gatesim-page .gs-chat-msg h5,
+.gatesim-page .gs-chat-msg h6 {
+  color: hsl(var(--gs-foreground));
+  letter-spacing: -0.02em;
+}
+.gatesim-page .gs-chat-msg table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.gatesim-page .gs-chat-msg th,
+.gatesim-page .gs-chat-msg td {
+  border: 1px solid hsla(var(--gs-border) / 0.7);
+  padding: 6px 8px;
+  vertical-align: top;
+}
+.gatesim-page .gs-chat-msg th {
+  background: rgba(2,6,23,0.28);
+  font-weight: 650;
+}
+
+.gatesim-page .gs-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid hsla(var(--gs-border) / 0.8);
+  color: hsla(var(--gs-muted-foreground) / 1);
+  font-size: 12px;
+  user-select: none;
+}
+
+.gatesim-page .gs-chat-log {
+  height: 240px;
+  overflow: auto;
+  padding: 10px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gatesim-page .gs-chat-msg {
+  max-width: 95%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid hsla(var(--gs-border) / 0.8);
+  background: hsla(var(--gs-background) / 0.22);
+  white-space: pre-wrap;
+}
+
+.gatesim-page .gs-chat-msg.gs-user {
+  margin-left: auto;
+  border-color: hsla(var(--gs-primary) / 0.35);
+  background: hsla(var(--gs-primary) / 0.14);
+}
+
+.gatesim-page .gs-chat-msg.gs-assistant {
+  margin-right: auto;
+  border-color: hsla(var(--gs-accent) / 0.25);
+}
+
+.gatesim-page .gs-chat-foot {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid hsla(var(--gs-border) / 0.8);
+  background: hsla(var(--gs-background) / 0.12);
+}
+
+.gatesim-page .gs-chat-input {
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid hsla(var(--gs-input) / 1);
+  background: hsla(var(--gs-background) / 0.20);
+  color: hsl(var(--gs-foreground));
+  padding: 10px 10px;
+  font-size: 13px;
+  outline: none;
+}
+
+.gatesim-page .gs-chat-input:focus {
+  border-color: hsla(var(--gs-ring) / 0.9);
+  box-shadow: 0 0 0 3px hsla(var(--gs-ring) / 0.18);
+}
+
+@media (max-width: 940px) {
+  .gatesim-page .gs-chat { right: 12px; bottom: 12px; }
+  .gatesim-page .gs-chat-log { height: 210px; }
+  .gatesim-page .gs-grid { grid-template-columns: 1fr; }
+}
+
+.gatesim-page .gs-feature {
+  padding: 16px;
+}
+
+.gatesim-page .gs-feature h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.gatesim-page .gs-feature p {
+  margin: 0;
+  color: hsla(var(--gs-muted-foreground) / 1);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Footer */
+.gatesim-page .gs-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  border-top: 1px solid hsla(var(--gs-border) / 0.7);
+  padding: 12px 0;
+  color: hsla(var(--gs-muted-foreground) / 1);
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+  background: linear-gradient(to top, hsla(var(--gs-background) / 0.9), hsla(var(--gs-background) / 0.55));
+}
+
+.gatesim-page .gs-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gatesim-page * { scroll-behavior: auto !important; }
+}
