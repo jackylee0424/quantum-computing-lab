@@ -552,7 +552,7 @@ function MeasurementVolumes({
       {volumes.map(({ k, point, sy, isPublic, isTopVote, votes, norm }) => {
         const clampedNorm = Math.min(1, Math.max(0, norm));
         const lowColor = new THREE.Color("#e8f4f8");
-        const highColor = new THREE.Color("#b73bc79d");
+        const highColor = new THREE.Color("#b776c0");
         const topColor = new THREE.Color("#b73bc7");
         const volumeColor = isTopVote ? topColor : highColor;
         const colorObj = lowColor.lerp(highColor, clampedNorm);
