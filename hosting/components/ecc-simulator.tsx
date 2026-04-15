@@ -3,7 +3,9 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { EccControlsPanel } from "@/components/ecc-controls-panel";
-import { Ecc3DVisualization, type MeasurementFile } from "@/components/ecc-3d-visualization";
+import { EccResultsPanel } from "@/components/ecc-results-panel";
+import { EccVisualizationPanel } from "@/components/ecc-visualization-panel";
+import type { MeasurementFile } from "@/components/ecc-3d-visualization";
 import {
   INF_POINT as INF,
   calculateCurvePoints,
@@ -1334,52 +1336,29 @@ export function EccSimulatorPage() {
             optionLabelForCurve={optionLabelForCurve}
           />
 
-          {showVisualization && (
-            <div className="card" style={{ marginTop: "12px", textAlign: "left" }}>
-              {/* <h3>Interactive Visualization</h3>
-              <div className="mono muted" style={{ marginBottom: "10px" }}>
-                y² = x³ + 7 mod {selected.p}, n={selected.n}, G=({selected.G.x}, {selected.G.y})
-                {visualizationGenerator && (selected.G.x !== visualizationGenerator.x || selected.G.y !== visualizationGenerator.y) && (
-                  <span> | new n={generatedMultiples.length + 1}, G=({visualizationGenerator.x}, {visualizationGenerator.y})</span>
-                )}
-              </div> */}
-              <div className="viz-container" style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid #232846" }}>
-                <Ecc3DVisualization
-                  p={selected.p}
-                  pointOrder={Number(effectiveCurveParams?.n ?? selected.n)}
-                  curvePoints={curvePoints}
-                  generatorPoint={visualizationGenerator}
-                  generatedPoints={generatedMultiples}
-                  publicPoint={publicQ}
-                  onSelectGenerator={handleVisualizationGeneratorSelect}
-                  measurementFile={measurementFile}
-                  onMeasurementFileChange={handleMeasurementFileChange}
-                  allowMeasurementUpload={!isRemoteMersenneTaskActive}
-                />
-              </div>
-            </div>
-          )}
+          <EccVisualizationPanel
+            showVisualization={!!showVisualization}
+            p={selected?.p ?? 0}
+            pointOrder={Number(effectiveCurveParams?.n ?? selected?.n ?? 0)}
+            curvePoints={curvePoints}
+            generatorPoint={visualizationGenerator}
+            generatedPoints={generatedMultiples}
+            publicPoint={publicQ}
+            measurementFile={measurementFile}
+            allowMeasurementUpload={!isRemoteMersenneTaskActive}
+            onSelectGenerator={handleVisualizationGeneratorSelect}
+            onMeasurementFileChange={handleMeasurementFileChange}
+          />
 
-          <div className="two" style={{ marginTop: "12px", textAlign: "left" }}>
-            <section className="card">
-              {showResultsTitle && <h3 id="resultsTitle">Classical computing</h3>}
-              <div id="results" className="mono muted" dangerouslySetInnerHTML={{ __html: results }}></div>
-            </section>
-            <section className="card">
-              {showWarningsTitle && <h3 id="warningsTitle" style={{ display: showWarningsTitle ? "block" : "none" }}>Quantum computing</h3>}
-              <div id="warningsResults" className="mono muted" style={{ display: warningsResults ? "block" : "none" }} dangerouslySetInnerHTML={{ __html: warningsResults }}></div>
-              <div
-                id="warnings"
-                ref={warningsLogRef}
-                onScroll={handleWarningsLogScroll}
-                className="log mono"
-                style={{ color: "#2563eb", display: warnings ? "block" : "none", background: "transparent", padding: "7px", marginTop: "12px" }}
-              >
-                {warnings}
-              </div>
-              {/* <div id="log" className="log mono muted" dangerouslySetInnerHTML={{ __html: log }}></div> */}
-            </section>
-          </div>
+          <EccResultsPanel
+            results={results}
+            warningsResults={warningsResults}
+            warnings={warnings}
+            showResultsTitle={showResultsTitle}
+            showWarningsTitle={showWarningsTitle}
+            warningsLogRef={warningsLogRef}
+            onWarningsLogScroll={handleWarningsLogScroll}
+          />
         </main>
       </div>
     </div>
