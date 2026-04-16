@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { EccControlsPanel } from "@/components/ecc-controls-panel";
 import { LoadingToast } from "@/components/loading-toast";
 import { EccResultsPanel } from "@/components/ecc-results-panel";
@@ -36,6 +35,8 @@ import {
   shorEstimates,
   type PredefinedCurve,
 } from "@/lib/curves";
+import { parseManualPointInput } from "@/lib/manual-point";
+import { normalizeMeasurementCounts } from "@/lib/measurement";
 
 function bsgsDiscreteLog(target: CurvePoint, base: CurvePoint, n: number, p: number, dbg?: (msg: string) => void): { k: number | null; m: number } {
   if (target.inf) return { k: 0, m: 1 };
@@ -178,8 +179,6 @@ function fmtPoint(P: any): string {
 }
 
 export function EccSimulatorPage() {
-  const router = useRouter();
-
   const [selected, setSelected] = useState<any>(null);
   const [publicQ, setPublicQ] = useState<any>(null);
   const [isComputingPublicQ, setIsComputingPublicQ] = useState(false);
@@ -191,8 +190,8 @@ export function EccSimulatorPage() {
   const [status, setStatus] = useState("");
   const [selectedInfo, setSelectedInfo] = useState("");
   const [pubInfo, setPubInfo] = useState("");
-  const [results, setResults] = useState("<span class=\"muted\">No runs yet.</span>");
-  const [warningsResults, setWarningsResults] = useState("");
+  const [results, setResults] = useState<React.ReactNode>(<span className="muted">No runs yet.</span>);
+  const [warningsResults, setWarningsResults] = useState<React.ReactNode>(null);
   const [warnings, setWarnings] = useState("");
   const [log, setLog] = useState("");
   const [showKeyArea, setShowKeyArea] = useState(false);
@@ -273,17 +272,16 @@ export function EccSimulatorPage() {
   }, [selected, visualizationGenerator, visualizationOrder]);
 
   const applyCurveSelection = useCallback((sel: any) => {
-    console.time('applyCurveSelection');
     setSelected(sel);
     setShowKeyArea(true);
     logRef.current = [];
     setLog("");
-    setWarningsResults("");
+    setWarningsResults(null);
     setWarnings("");
     setShowWarnings(false);
     setShowWarningsTitle(false);
     setShowResultsTitle(true);
-    setResults(`<span class="muted">Ready to generate keys.</span>`);
+    setResults(<span className="muted">Ready to generate keys.</span>);
     setPublicQ(null);
     setQMode("k");
     setQXInput("");
@@ -303,7 +301,6 @@ export function EccSimulatorPage() {
 
     const info = `n=${sel.n},  p=${sel.p},  G=${fmtPoint(sel.G)}, curve: y² = x³ + 7 mod ${sel.p} ${mersenne ? "prime field)" : "prime field"}`;
     setSelectedInfo(info);
-    console.timeEnd('applyCurveSelection');
   }, []);
 
   const effectiveControlQubits = useMemo(() => {
@@ -343,20 +340,14 @@ export function EccSimulatorPage() {
   // Memoized curve points for visualization (only for p = 127 and p = 31)
   const curvePoints = useMemo(() => {
     if (!selected || (selected.p !== 127 && selected.p !== 31)) return [];
-    console.time('calculateCurvePoints');
-    const result = calculateCurvePoints(selected.p);
-    console.timeEnd('calculateCurvePoints');
-    return result;
+    return calculateCurvePoints(selected.p);
   }, [selected]);
 
   // Memoized generated multiples for visualization
   const generatedMultiples = useMemo(() => {
     if (!visualizationGenerator || !selected || !(selected.p === 127 || selected.p === 31)) return [];
-    console.time('generateMultiples');
     const maxCount = Number(visualizationOrder ?? selected.n);
-    const result = generateMultiples(visualizationGenerator, selected.p, Number.isFinite(maxCount) ? maxCount : selected.n);
-    console.timeEnd('generateMultiples');
-    return result;
+    return generateMultiples(visualizationGenerator, selected.p, Number.isFinite(maxCount) ? maxCount : selected.n);
   }, [visualizationGenerator, visualizationOrder, selected]);
 
   // Show visualization only for p = 127 or p = 31
@@ -437,7 +428,7 @@ export function EccSimulatorPage() {
     logRef.current = [];
     qpuLogTextRef.current = "";
     setLog("");
-    setWarningsResults("");
+    setWarningsResults(null);
     setWarnings("");
     setShowWarnings(false);
     setShowWarningsTitle(false);
@@ -457,8 +448,8 @@ export function EccSimulatorPage() {
     setPublicQ(null);
     setPubInfo("");
     setShowRecover(false);
-    if (resetResults) setResults(`<span class="muted">No runs yet.</span>`);
-    setWarningsResults("");
+    if (resetResults) setResults(<span className="muted">No runs yet.</span>);
+    setWarningsResults(null);
     setWarnings("");
     setShowWarnings(false);
     setShowWarningsTitle(false);
@@ -514,7 +505,7 @@ export function EccSimulatorPage() {
     const Q = publicQ;
     const t0 = performance.now();
 
-    const { k, m } = bsgsDiscreteLog(Q, G, n, p, (msg) => console.log(msg));
+    const { k, m } = bsgsDiscreteLog(Q, G, n, p);
     return { k, ms: performance.now() - t0, m, usedGPU: false };
   };
 
@@ -603,8 +594,8 @@ export function EccSimulatorPage() {
   const handleOrderSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setOrderSelect(e.target.value);
     // Reset results immediately
-    setResults(`<span class="muted">Selecting curve...</span>`);
-    setWarningsResults("");
+    setResults(<span className="muted">Selecting curve...</span>);
+    setWarningsResults(null);
     setWarnings("");
     setShowWarnings(false);
     setShowWarningsTitle(false);
@@ -617,8 +608,8 @@ export function EccSimulatorPage() {
     const newMode = e.target.value;
     setQMode(newMode);
     // Reset results and public Q
-    setResults(`<span class="muted">No runs yet.</span>`);
-    setWarningsResults("");
+    setResults(<span className="muted">No runs yet.</span>);
+    setWarningsResults(null);
     setWarnings("");
     setShowWarnings(false);
     setShowWarningsTitle(false);
@@ -731,12 +722,13 @@ export function EccSimulatorPage() {
     const n = Number(effectiveCurveParams?.n ?? selected?.n);
 
     try {
-      const Q = {
-        inf: false,
-        x: parseInt(qXInput),
-        y: parseInt(qYInput),
-      };
+      const parsed = parseManualPointInput({ qXInput, qYInput, p });
+      if (!parsed.point) {
+        logLine(parsed.error ?? "Invalid Q coordinates.", "bad");
+        return;
+      }
 
+      const Q = parsed.point;
       if (!isOnCurve(Q, p)) {
         logLine(`Invalid Q: point is not on curve y² = x³ + 7 (mod p).`, "bad");
         return;
@@ -892,25 +884,23 @@ export function EccSimulatorPage() {
       const queuePosition = data?.queue_position ?? result?.queue_position;
       const recoveredK =
         result?.post_process?.recovered_k ?? result?.post_process?.recoveredK;
-      const statusHtml = [
-        "<div><b>Shor's ECDLP prime field</b></div>",
-        `<div class="mono">Task ID: ${taskId}</div>`,
-        status ? `<div class="mono">Status: ${status}</div>` : "",
-        status === "QUEUED" && queuePosition !== undefined && queuePosition !== null
-          ? `<div class="mono">Queue position: ${queuePosition} (keep this page open)</div>`
-          : "",
-        recoveredK !== undefined && recoveredK !== null
-          ? `<div class="mono">Recovered k: ${recoveredK}</div>`
-          : "",
-        result?.post_process_error
-          ? `<div class="bad">Post-process error: ${result.post_process_error}</div>`
-          : "",
-        error ? `<div class="bad">Error: ${error}</div>` : "",
-      ]
-        .filter(Boolean)
-        .join("");
-
-      setWarningsResults(statusHtml);
+      setWarningsResults(
+        <>
+          <div><b>Shor&apos;s ECDLP prime field</b></div>
+          <div className="mono">Task ID: {String(taskId)}</div>
+          {status ? <div className="mono">Status: {String(status)}</div> : null}
+          {status === "QUEUED" && queuePosition !== undefined && queuePosition !== null ? (
+            <div className="mono">Queue position: {String(queuePosition)} (keep this page open)</div>
+          ) : null}
+          {recoveredK !== undefined && recoveredK !== null ? (
+            <div className="mono">Recovered k: {String(recoveredK)}</div>
+          ) : null}
+          {result?.post_process_error ? (
+            <div className="bad">Post-process error: {String(result.post_process_error)}</div>
+          ) : null}
+          {error ? <div className="bad">Error: {String(error)}</div> : null}
+        </>,
+      );
       setShowWarningsTitle(true);
 
       if (!didSetMeasurement) {
@@ -928,43 +918,63 @@ export function EccSimulatorPage() {
       if (status === "COMPLETED" && result && !didSetMeasurement) {
         const counts = result?.measurement_counts;
         if (counts && typeof counts === "object") {
-          const runInfo = result?.run_info;
-          const buildInfo = runInfo?.build_info;
-          const pFromRun = Number(buildInfo?.p_mod ?? selected?.p);
-          const nFromRun = Number(buildInfo?.order ?? selected?.n);
-          const controlA = Number(buildInfo?.control_qubits_A ?? result?.control_qubits_A ?? result?.control_qubits);
-          const controlB = Number(buildInfo?.control_qubits_B ?? result?.control_qubits_B ?? result?.control_qubits);
+          try {
+            const runInfo = result?.run_info;
+            const buildInfo = runInfo?.build_info;
+            const pFromRun = Number(buildInfo?.p_mod ?? selected?.p);
+            const nFromRun = Number(buildInfo?.order ?? selected?.n);
+            const controlA = Number(buildInfo?.control_qubits_A ?? result?.control_qubits_A ?? result?.control_qubits);
+            const controlB = Number(buildInfo?.control_qubits_B ?? result?.control_qubits_B ?? result?.control_qubits);
+            const expectedBitLength = Number.isFinite(controlA) && Number.isFinite(controlB)
+              ? controlA + controlB
+              : Number.isFinite(controlA)
+                ? controlA * 2
+                : undefined;
+            const normalizedMeasurementCounts = Object.fromEntries(
+              normalizeMeasurementCounts(counts as Record<string, unknown>, { expectedBitLength }),
+            );
 
-          const totalQubits = Number(buildInfo?.total_qubits ?? 0);
-          const totalGates = Number(buildInfo?.gates_written ?? 0);
+            const totalQubits = Number(buildInfo?.total_qubits ?? 0);
+            const totalGates = Number(buildInfo?.gates_written ?? 0);
 
-          const secretK = (() => {
-            const t = (qMode === "k" ? kInput : "").trim();
-            const k = Number(t);
-            return t && Number.isFinite(k) ? k : undefined;
-          })();
+            const secretK = (() => {
+              const t = (qMode === "k" ? kInput : "").trim();
+              const k = Number(t);
+              return t && Number.isFinite(k) ? k : undefined;
+            })();
 
-          const measurement: MeasurementFile = {
-            origin: "qpu-simulation",
-            p: pFromRun,
-            measurement_counts: counts as Record<string, number>,
-            control_qubits_A: Number.isFinite(controlA) ? controlA : undefined,
-            control_qubits_B: Number.isFinite(controlB) ? controlB : undefined,
-            shots: Number(result?.shots ?? data?.shots ?? 10000),
-            secret_k: secretK,
-            recovered_k: recoveredK ?? undefined,
-            curve_parameters: {
-              base_point: activeRemoteRunParamsRef.current?.base_point ?? (selected?.G ? [Number(selected.G.x), Number(selected.G.y)] : undefined),
-              max_point_order: activeRemoteRunParamsRef.current?.order ?? nFromRun,
+            const measurement: MeasurementFile = {
+              origin: "qpu-simulation",
               p: pFromRun,
-            },
-            total_qubits: Number.isFinite(totalQubits) ? totalQubits : 0,
-            total_gates: Number.isFinite(totalGates) ? totalGates : 0,
-          };
+              measurement_counts: normalizedMeasurementCounts,
+              control_qubits_A: Number.isFinite(controlA) ? controlA : undefined,
+              control_qubits_B: Number.isFinite(controlB) ? controlB : undefined,
+              shots: Number(result?.shots ?? data?.shots ?? 10000),
+              secret_k: secretK,
+              recovered_k: recoveredK ?? undefined,
+              curve_parameters: {
+                base_point: activeRemoteRunParamsRef.current?.base_point ?? (selected?.G ? [Number(selected.G.x), Number(selected.G.y)] : undefined),
+                max_point_order: activeRemoteRunParamsRef.current?.order ?? nFromRun,
+                p: pFromRun,
+              },
+              total_qubits: Number.isFinite(totalQubits) ? totalQubits : 0,
+              total_gates: Number.isFinite(totalGates) ? totalGates : 0,
+            };
 
-          setMeasurementFile(measurement);
-          didSetMeasurement = true;
-          hideLoadingToast();
+            setMeasurementFile(measurement);
+            didSetMeasurement = true;
+            hideLoadingToast();
+          } catch (measurementError) {
+            const message = `Measurement data error: ${String(measurementError)}`;
+            appendQpuLog(message);
+            setWarningsResults(
+              <>
+                <div><b>Shor&apos;s ECDLP prime field</b></div>
+                <div className="bad">{message}</div>
+              </>,
+            );
+            hideLoadingToast();
+          }
         }
       }
 
@@ -992,7 +1002,10 @@ export function EccSimulatorPage() {
     setIsRemoteMersenneTaskActive(true);
     setShowWarningsTitle(true);
     setWarningsResults(
-      "<div><b>Remote Shor (prime field)</b></div><div class=\"mono\">Status: SUBMITTING</div>",
+      <>
+        <div><b>Remote Shor (prime field)</b></div>
+        <div className="mono">Status: SUBMITTING</div>
+      </>,
     );
     showLoadingToast("Submitting recover-k request to the server. Waiting for acceptance before the 3D animation can load.");
     appendQpuLog("Submitting remote Shor prime field task...");
@@ -1036,7 +1049,10 @@ export function EccSimulatorPage() {
         const msg = err?.error || "Failed to submit Shor task";
         appendQpuLog(msg);
         setWarningsResults(
-          `<div><b>Remote Shor (prime field)</b></div><div class="bad">${msg}</div>`,
+          <>
+            <div><b>Remote Shor (prime field)</b></div>
+            <div className="bad">{String(msg)}</div>
+          </>,
         );
         return;
       }
@@ -1056,7 +1072,10 @@ export function EccSimulatorPage() {
       const msg = `Submission error: ${String(err)}`;
       appendQpuLog(msg);
       setWarningsResults(
-        `<div><b>Remote Shor (prime field)</b></div><div class="bad">${msg}</div>`,
+        <>
+          <div><b>Remote Shor (prime field)</b></div>
+          <div className="bad">{String(msg)}</div>
+        </>,
       );
       hideLoadingToast();
     } finally {
@@ -1074,7 +1093,7 @@ export function EccSimulatorPage() {
     setIsRecoveringK(true);
     const QSnapshot = publicQ;
     clearLog();
-    setResults(`<span class="muted">Running k-recovery routines…</span>`);
+    setResults(<span className="muted">Running k-recovery routines…</span>);
     setIsComputingPublicQ(true);
 
     const { n, p } = selected;
@@ -1116,45 +1135,54 @@ export function EccSimulatorPage() {
       
       const effectiveG = effectiveCurveParams?.G ?? selected.G;
 
-      setResults(`
-        ${!isPrime(p) ? `<div class="warn">Warning: p=${p} is not prime; estimates assume a prime field.</div>` : ""}
-        <div><span class="muted">Curve:</span> <span class="mono">y² = x³ + 7 mod p</span></div>
-        <div><span class="muted">p:</span> <span class="mono">${p}</span></div>
-        <div><span class="muted">Order n:</span> <span class="mono">${n}</span></div>
-        <div><span class="muted">Generator G:</span> <span class="mono">${fmtPoint(effectiveG)}</span></div>
-        <div><span class="muted">Secret k size:</span> <span class="mono">${qe.s} bits</span></div>
-        <div><span class="muted">Public Q:</span> <span class="mono">${fmtPoint(QSnapshot)}</span></div>
-        <div class="sep"></div>
-        <div><b>Recovered k (CPU):</b></div>
-        <div class="mono">
-          1) Brute force:<br/>${b1_cpu.k === null ? "<span class='bad'>not found</span>" : `<span class='ok'>${b1_cpu.k}</span>`} (${b1_cpu.ms.toFixed(2)} ms)<br><br>
-          2) Baby-step Giant-step (BSGS):<br/>${b2_cpu.k === null ? "<span class='bad'>not found</span>" : `<span class='ok'>${b2_cpu.k}</span>`} (${b2_cpu.ms.toFixed(2)} ms)<br><br>
-          3) Pollard's rho:<br/>${b3_cpu.k === null ? "<span class='warn'>not found</span>" : `<span class='ok'>${b3_cpu.k}</span>`} (${b3_cpu.ms.toFixed(2)} ms)<br>
-        </div>
-      `);
+      setResults(
+        <>
+          {!isPrime(p) ? <div className="warn">Warning: p={p} is not prime; estimates assume a prime field.</div> : null}
+          <div><span className="muted">Curve:</span> <span className="mono">y² = x³ + 7 mod p</span></div>
+          <div><span className="muted">p:</span> <span className="mono">{p}</span></div>
+          <div><span className="muted">Order n:</span> <span className="mono">{n}</span></div>
+          <div><span className="muted">Generator G:</span> <span className="mono">{fmtPoint(effectiveG)}</span></div>
+          <div><span className="muted">Secret k size:</span> <span className="mono">{qe.s} bits</span></div>
+          <div><span className="muted">Public Q:</span> <span className="mono">{fmtPoint(QSnapshot)}</span></div>
+          <div className="sep"></div>
+          <div><b>Recovered k (CPU):</b></div>
+          <div className="mono">
+            <div>1) Brute force:</div>
+            <div className={b1_cpu.k === null ? "bad" : "ok"}>{b1_cpu.k === null ? "not found" : b1_cpu.k} ({b1_cpu.ms.toFixed(2)} ms)</div>
+            <br />
+            <div>2) Baby-step Giant-step (BSGS):</div>
+            <div className={b2_cpu.k === null ? "bad" : "ok"}>{b2_cpu.k === null ? "not found" : b2_cpu.k} ({b2_cpu.ms.toFixed(2)} ms)</div>
+            <br />
+            <div>3) Pollard&apos;s rho:</div>
+            <div className={b3_cpu.k === null ? "warn" : "ok"}>{b3_cpu.k === null ? "not found" : b3_cpu.k} ({b3_cpu.ms.toFixed(2)} ms)</div>
+          </div>
+        </>,
+      );
 
       if (isMersenne && p === 31) {
         await runMersenneQpu(QSnapshot);
       } else {
-        setWarningsResults(`
-          <div><b>Quantum Pollard's rho (estimates only):</b></div>
-          <div class="mono">
-            Classical work (~group-ops):<br>
-            &nbsp;&nbsp;brute force: <span class='bad'>${`~${qe.classical.bruteOps}`}</span><br>
-            &nbsp;&nbsp;BSGS: <span class='bad'>${`~${qe.classical.bsgsOps}`}</span><br>
-            &nbsp;&nbsp;Pollard's rho: <span class='bad'>${`~${qe.classical.pollardOps}`}</span><br>
-            Quantum-style heuristics (estimation):<br>
-            &nbsp;&nbsp;Grover-accelerated brute force: ~sqrt(n) approx <span class='bad'>${`~${qe.quantum.groverBruteOps}`}</span><br>
-            &nbsp;&nbsp;Quantum collision-finding heuristic: ~n^(1/3) approx <span class='bad'>${`~${qe.quantum.collisionOps_n13}`}</span>
-          </div>
-          <div class="sep"></div>
-          <div><b>Shor's algorithm (resource estimates only):</b></div>
-          <div class="mono">
-            Estimated logical qubits: <span class='bad'>~${se.logicalQubits}</span><br>
-            Estimated Toffoli gates: <span class='bad'>~${se.toffoli}</span><br>
-            Estimated circuit depth: <span class='bad'>~${se.tDepth}</span>
-          </div>
-        `);
+        setWarningsResults(
+          <>
+            <div><b>Quantum Pollard&apos;s rho (estimates only):</b></div>
+            <div className="mono">
+              <div>Classical work (~group-ops):</div>
+              <div>&nbsp;&nbsp;brute force: <span className="bad">~{qe.classical.bruteOps}</span></div>
+              <div>&nbsp;&nbsp;BSGS: <span className="bad">~{qe.classical.bsgsOps}</span></div>
+              <div>&nbsp;&nbsp;Pollard&apos;s rho: <span className="bad">~{qe.classical.pollardOps}</span></div>
+              <div>Quantum-style heuristics (estimation):</div>
+              <div>&nbsp;&nbsp;Grover-accelerated brute force: ~sqrt(n) approx <span className="bad">~{qe.quantum.groverBruteOps}</span></div>
+              <div>&nbsp;&nbsp;Quantum collision-finding heuristic: ~n^(1/3) approx <span className="bad">~{qe.quantum.collisionOps_n13}</span></div>
+            </div>
+            <div className="sep"></div>
+            <div><b>Shor&apos;s algorithm (resource estimates only):</b></div>
+            <div className="mono">
+              <div>Estimated logical qubits: <span className="bad">~{se.logicalQubits}</span></div>
+              <div>Estimated Toffoli gates: <span className="bad">~{se.toffoli}</span></div>
+              <div>Estimated circuit depth: <span className="bad">~{se.tDepth}</span></div>
+            </div>
+          </>,
+        );
         setShowWarningsTitle(true);
       }
     } finally {

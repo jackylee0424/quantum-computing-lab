@@ -1,8 +1,8 @@
-import type { RefObject, UIEventHandler } from "react";
+import type { ReactNode, RefObject, UIEventHandler } from "react";
 
 type Props = {
-  results: string;
-  warningsResults: string;
+  results: ReactNode;
+  warningsResults: ReactNode;
   warnings: string;
   showResultsTitle: boolean;
   showWarningsTitle: boolean;
@@ -23,7 +23,7 @@ export function EccResultsPanel({
     <div className="two" style={{ marginTop: "12px", textAlign: "left" }}>
       <section className="card">
         {showResultsTitle && <h3 id="resultsTitle">Classical computing</h3>}
-        <div id="results" className="mono muted" dangerouslySetInnerHTML={{ __html: results }}></div>
+        <div id="results" className="mono muted">{results}</div>
       </section>
       <section className="card">
         {showWarningsTitle && (
@@ -35,8 +35,9 @@ export function EccResultsPanel({
           id="warningsResults"
           className="mono muted"
           style={{ display: warningsResults ? "block" : "none" }}
-          dangerouslySetInnerHTML={{ __html: warningsResults }}
-        ></div>
+        >
+          {warningsResults}
+        </div>
         <div
           id="warnings"
           ref={warningsLogRef}

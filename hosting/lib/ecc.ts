@@ -153,6 +153,48 @@ export function sqrtModP3Mod4(a: number, p: number): number {
   return modPow(a, (p + 1) >>> 2, p);
 }
 
+export function sqrtModPrime(a: number, p: number): number | null {
+  const value = mod(a, p);
+  if (value === 0) return 0;
+  if (p === 2) return value;
+  if (legendreSymbol(value, p) !== 1) return null;
+  if (p % 4 === 3) return sqrtModP3Mod4(value, p);
+
+  let q = p - 1;
+  let s = 0;
+  while ((q & 1) === 0) {
+    q /= 2;
+    s += 1;
+  }
+
+  let z = 2;
+  while (legendreSymbol(z, p) !== p - 1) z += 1;
+
+  let m = s;
+  let c = modPow(z, q, p);
+  let t = modPow(value, q, p);
+  let r = modPow(value, (q + 1) / 2, p);
+
+  while (t !== 1) {
+    let i = 1;
+    let t2i = modMul(t, t, p);
+    while (i < m && t2i !== 1) {
+      t2i = modMul(t2i, t2i, p);
+      i += 1;
+    }
+    if (i === m) return null;
+
+    const exponent = 2 ** (m - i - 1);
+    const b = modPow(c, exponent, p);
+    r = modMul(r, b, p);
+    c = modMul(b, b, p);
+    t = modMul(t, c, p);
+    m = i;
+  }
+
+  return r;
+}
+
 export function countCurveOrder(p: number): number {
   let total = 1;
   for (let x = 0; x < p; x++) {
@@ -172,7 +214,8 @@ export function calculateCurvePoints(p: number): CurvePoint[] {
     if (ls === 0) {
       points.push({ x, y: 0 });
     } else if (ls === 1) {
-      const y = sqrtModP3Mod4(rhs, p);
+      const y = sqrtModPrime(rhs, p);
+      if (y === null) continue;
       points.push({ x, y });
       if (y !== 0) points.push({ x, y: p - y });
     }

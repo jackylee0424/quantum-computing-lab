@@ -4,10 +4,50 @@ import React, { useRef, useState, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Text, Line, Html, Billboard } from "@react-three/drei";
 import * as THREE from "three";
-import { estimateKsFromMeasurement } from "@/lib/measurement";
+import { estimateKsFromMeasurement, normalizeMeasurementCounts } from "@/lib/measurement";
 import type { CurvePoint as Point } from "@/lib/ecc";
 
 type MeasurementCounts = Record<string, number>;
+
+function createMeasurementSeed(secretK: number | undefined, recoveredK: number | undefined): number {
+  return 0x9e3779b9 ^ (secretK ?? 0) ^ (recoveredK ?? 0);
+}
+
+function nextMeasurementSeed(seed: number): number {
+  let next = seed | 0;
+  next ^= next << 13;
+  next ^= next >>> 17;
+  next ^= next << 5;
+  return next >>> 0;
+}
+
+function takeMeasurementBatch(
+  entries: Array<{ bits: string; remaining: number }>,
+  count: number,
+  seed: number,
+): { batch: string[]; seed: number } {
+  const batch: string[] = [];
+  let currentSeed = seed;
+
+  for (let produced = 0; produced < count; produced += 1) {
+    const remainingTotal = entries.reduce((sum, entry) => sum + entry.remaining, 0);
+    if (remainingTotal <= 0) break;
+
+    currentSeed = nextMeasurementSeed(currentSeed);
+    let offset = currentSeed % remainingTotal;
+    for (const entry of entries) {
+      if (entry.remaining <= 0) continue;
+      if (offset < entry.remaining) {
+        entry.remaining -= 1;
+        batch.push(entry.bits);
+        break;
+      }
+      offset -= entry.remaining;
+    }
+  }
+
+  return { batch, seed: currentSeed };
+}
 
 export type MeasurementFile = {
   // Used by the UI to distinguish QPU-simulation measurements from uploaded JSON.
@@ -296,7 +336,10 @@ function MeasurementVolumes({
   const intervalRef = useRef<number | null>(null);
   const votesRef = useRef<number[]>([]);
   const cursorRef = useRef(0);
-  const shotSequenceRef = useRef<string[] | null>(null);
+  const totalShotsRef = useRef(0);
+  const measurementEntriesRef = useRef<Array<{ bits: string; remaining: number }> | null>(null);
+  const measurementBitLengthRef = useRef<number>(0);
+  const measurementSeedRef = useRef<number>(0);
   const prevEnabledRef = useRef<boolean>(enabled);
   const prevDataKeyRef = useRef<string | null>(null);
   const prevTriggerRunRef = useRef<number | undefined>(triggerRun);
@@ -308,8 +351,16 @@ function MeasurementVolumes({
     if (!data) return null;
     const base = data.curve_parameters?.base_point;
     const baseKey = Array.isArray(base) && base.length === 2 ? `${base[0]},${base[1]}` : "";
-    const outcomes = Object.keys(data.measurement_counts || {}).length;
-    return `${data.p}|${data.secret_k ?? ""}|${data.recovered_k ?? ""}|${baseKey}|${outcomes}`;
+    const normalizedEntries = Object.entries(data.measurement_counts || {})
+      .map(([bits, count]) => `${bits}:${count}`)
+      .sort()
+      .join("|");
+    const controlKey = [
+      data.control_qubits_A ?? "",
+      data.control_qubits_B ?? "",
+      data.control_qubits ?? "",
+    ].join(":");
+    return `${data.p}|${data.secret_k ?? ""}|${data.recovered_k ?? ""}|${baseKey}|${controlKey}|${normalizedEntries}`;
   }, [data]);
 
   const compat = useMemo(() => {
@@ -354,7 +405,10 @@ function MeasurementVolumes({
     if (intervalRef.current) window.clearInterval(intervalRef.current);
     intervalRef.current = null;
     cursorRef.current = 0;
-    shotSequenceRef.current = null;
+    totalShotsRef.current = 0;
+    measurementEntriesRef.current = null;
+    measurementBitLengthRef.current = 0;
+    measurementSeedRef.current = 0;
     votesRef.current = Array.from({ length: pointOrder }, () => 0);
     setVotesSnapshot(Array.from({ length: pointOrder }, () => 0));
     setShotsProcessed(0);
@@ -376,51 +430,42 @@ function MeasurementVolumes({
       return;
     }
 
-    if (!shotSequenceRef.current) {
-      const entries = Object.entries(data.measurement_counts || {});
-      const total = entries.reduce((acc, [, c]) => acc + (Number.isFinite(c) ? c : 0), 0);
+    if (!measurementEntriesRef.current) {
+      const expectedBitLength = Number.isFinite(data.control_qubits_A) && Number.isFinite(data.control_qubits_B)
+        ? Number(data.control_qubits_A) + Number(data.control_qubits_B)
+        : Number.isFinite(data.control_qubits)
+          ? Number(data.control_qubits) * 2
+          : undefined;
+      const normalizedEntries = normalizeMeasurementCounts(data.measurement_counts || {}, { expectedBitLength });
+      const total = normalizedEntries.reduce((acc, [, c]) => acc + c, 0);
+      totalShotsRef.current = total;
       setShotsTotal(total);
       votesRef.current = Array.from({ length: pointOrder }, () => 0);
       setVotesSnapshot(Array.from({ length: pointOrder }, () => 0));
       cursorRef.current = 0;
-
-      const seq: string[] = [];
-      for (const [bits, count] of entries) {
-        const c = Math.max(0, Math.floor(count));
-        for (let i = 0; i < c; i++) seq.push(bits);
-      }
-      // Deterministic-ish shuffle for nicer streaming variety.
-      let seed = 0x9e3779b9 ^ (data.secret_k ?? 0) ^ (data.recovered_k ?? 0);
-      const randU32 = () => {
-        seed ^= seed << 13;
-        seed ^= seed >>> 17;
-        seed ^= seed << 5;
-        return seed >>> 0;
-      };
-      for (let i = seq.length - 1; i > 0; i--) {
-        const j = randU32() % (i + 1);
-        [seq[i], seq[j]] = [seq[j], seq[i]];
-      }
-      shotSequenceRef.current = seq;
+      measurementEntriesRef.current = normalizedEntries.map(([bits, count]) => ({ bits, remaining: count }));
+      measurementBitLengthRef.current = normalizedEntries[0]?.[0]?.length ?? 0;
+      measurementSeedRef.current = createMeasurementSeed(data.secret_k, data.recovered_k);
       setShotsProcessed(0);
     }
 
-    const seq = shotSequenceRef.current;
-    if (!seq || cursorRef.current >= seq.length) {
+    const entries = measurementEntriesRef.current;
+    if (!entries || cursorRef.current >= totalShotsRef.current) {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
       intervalRef.current = null;
       setStatus("done");
       return;
     }
 
+    const bitLength = measurementBitLengthRef.current;
     const tA =
       data.control_qubits_A ??
       data.control_qubits ??
-      Math.floor((shotSequenceRef.current?.[0]?.length ?? 0) / 2);
+      Math.floor(bitLength / 2);
     const tB =
       data.control_qubits_B ??
       data.control_qubits ??
-      ((shotSequenceRef.current?.[0]?.length ?? 0) - tA);
+      (bitLength - tA);
 
     const tickMs = 80;
     const batchSize = 40;
@@ -429,12 +474,20 @@ function MeasurementVolumes({
 
     setStatus("running");
     intervalRef.current = window.setInterval(() => {
-      const seqNow = shotSequenceRef.current;
-      if (!seqNow) return;
+      const entriesNow = measurementEntriesRef.current;
+      if (!entriesNow) return;
 
-      const end = Math.min(cursorRef.current + batchSize, seqNow.length);
-      for (let i = cursorRef.current; i < end; i++) {
-        const ks = estimateKsFromMeasurement(seqNow[i], { n: pointOrder, tA, tB });
+      const { batch, seed } = takeMeasurementBatch(entriesNow, batchSize, measurementSeedRef.current);
+      measurementSeedRef.current = seed;
+      if (!batch.length) {
+        if (intervalRef.current) window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        setStatus("done");
+        return;
+      }
+
+      for (const bits of batch) {
+        const ks = estimateKsFromMeasurement(bits, { n: pointOrder, tA, tB });
         if (!ks.length) continue;
         const weight = 1 / ks.length;
         for (const k of ks) {
@@ -442,13 +495,14 @@ function MeasurementVolumes({
           votesRef.current[k] += weight;
         }
       }
+      const end = Math.min(cursorRef.current + batch.length, totalShotsRef.current);
       cursorRef.current = end;
 
       setShotsProcessed(end);
       setVotesSnapshot([...votesRef.current]);
       invalidate();
 
-      if (end >= seqNow.length) {
+      if (end >= totalShotsRef.current) {
         if (intervalRef.current) window.clearInterval(intervalRef.current);
         intervalRef.current = null;
         setStatus("done");
@@ -628,7 +682,6 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
   onMeasurementFileChange,
   allowMeasurementUpload = true,
 }: Ecc3DVisualizationProps) {
-  console.time('Ecc3DVisualization render');
   const scale = useMemo(() => Math.max(0.5, 8 / p), [p]);
   const center = useMemo(() => (p * scale) / 2, [p, scale]);
   const [localMeasurementFile, setLocalMeasurementFile] = useState<MeasurementFile | null>(null);
@@ -658,15 +711,25 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
         if (!parsed || typeof parsed !== "object") throw new Error("JSON root must be an object.");
         const asAny = parsed as any;
         if (!Number.isFinite(asAny.p)) throw new Error('Missing/invalid "p" in JSON.');
-        if (!asAny.measurement_counts || typeof asAny.measurement_counts !== "object") throw new Error('Missing/invalid "measurement_counts" in JSON.');
+
+        const expectedBitLength = Number.isFinite(asAny.control_qubits_A) && Number.isFinite(asAny.control_qubits_B)
+          ? Number(asAny.control_qubits_A) + Number(asAny.control_qubits_B)
+          : Number.isFinite(asAny.control_qubits)
+            ? Number(asAny.control_qubits) * 2
+            : undefined;
+        const normalizedEntries = normalizeMeasurementCounts(asAny.measurement_counts, { expectedBitLength });
 
         // Treat any JSON loaded from disk as an upload, even if it was previously exported.
-        asAny.origin = "upload";
+        const normalizedMeasurementFile: MeasurementFile = {
+          ...(asAny as MeasurementFile),
+          origin: "upload",
+          measurement_counts: Object.fromEntries(normalizedEntries),
+        };
 
-        setLocalMeasurementFile(asAny as MeasurementFile);
+        setLocalMeasurementFile(normalizedMeasurementFile);
         setLocalMeasurementName(name);
         setLocalMeasurementLoadError(null);
-        onMeasurementFileChange?.(asAny as MeasurementFile, name);
+        onMeasurementFileChange?.(normalizedMeasurementFile, name);
       } catch (e) {
         const msg = String((e as any)?.message || e);
         setLocalMeasurementLoadError(msg);
@@ -800,7 +863,7 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
       </Canvas>
 
       {/* Measurement file drop/upload overlay */}
-      {allowMeasurementUpload && <div className="hidden sm:flex absolute top-4 left-4 items-center gap-2">
+      {allowMeasurementUpload && <div className="absolute top-4 left-4 right-4 sm:right-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
         <div
           className={[
             "bg-card/80 backdrop-blur-sm rounded-lg border border-border text-xs",
@@ -850,11 +913,11 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
             </div>
 
             {measurementsEnabled && (
-              <div className="hidden sm:block">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
 
                 {/* run streaming vote button */}
                 <button
-                className="ml-2 rounded px-2 py-1 border border-border bg-background/40 text-muted-foreground hover:text-foreground"
+                className="rounded px-2 py-1 border border-border bg-background/40 text-muted-foreground hover:text-foreground"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleRunClick();
@@ -866,7 +929,7 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
               {/* download button */}
               {effectiveMeasurementFile?.origin === "qpu-simulation" && (
                 <button
-                  className="ml-2 rounded px-2 py-1 border border-border bg-background/40 text-muted-foreground hover:text-foreground"
+                  className="rounded px-2 py-1 border border-border bg-background/40 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation();
                     downloadMeasurements();
@@ -878,7 +941,7 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
 
                 {/* clear button */}
               <button
-                className="ml-2 rounded px-2 py-1 border border-border bg-background/40 text-muted-foreground hover:text-foreground"
+                className="rounded px-2 py-1 border border-border bg-background/40 text-muted-foreground hover:text-foreground"
                 onClick={(e) => {
                   e.stopPropagation();
                   clearMeasurements();
@@ -979,5 +1042,4 @@ export const Ecc3DVisualization = React.memo(function Ecc3DVisualization({
       </div> */}
     </div>
   );
-  console.timeEnd('Ecc3DVisualization render');
 });
