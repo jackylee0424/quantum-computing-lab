@@ -1,0 +1,59 @@
+name: ECC Browser Parity
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ecc-browser-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ecc-browser-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: hosting
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.9.0
+          cache: npm
+          cache-dependency-path: hosting/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run ECC browser parity harness
+        env:
+          CI: true
+          ECC_DEPLOYED_BASE_URL: https://quantum.sciencevr.com
+          ECC_LOCAL_BASE_URL: http://127.0.0.1:3001
+          ECC_LOCAL_PORT: 3001
+        run: npm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecc-browser-parity-artifacts
+          path: |
+            hosting/playwright-report/
+            hosting/test-results/
+          if-no-files-found: ignore

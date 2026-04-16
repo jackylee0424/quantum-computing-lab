@@ -17,6 +17,16 @@ export type PredefinedCurve = {
   field?: string;
 };
 
+export type InitialCurveSelectionState = {
+  orderSelect: string;
+  selected: PredefinedCurve | null;
+  selectedInfo: string;
+  showKeyArea: boolean;
+  status: string;
+  visualizationGenerator: CurvePoint | null;
+  visualizationOrder: number | null;
+};
+
 const CURVE_CANDIDATES_BY_ORDER: Record<string, CurveCandidate[]> = {
   "21": [{ base_point: [1, 16], order: 21, p: 31, field: "mersenne" }],
   "63": [{ base_point: [145, 194], order: 63, p: 251 }],
@@ -82,6 +92,35 @@ export function buildPredefinedCurves(): PredefinedCurve[] {
 export function optionLabelForCurve(curve: PredefinedCurve): string {
   const kBits = bitLength((curve.n - 1) >>> 0);
   return `${kBits}-bit k, n=${curve.n}, y²=x³+7 mod ${curve.p}`;
+}
+
+export function curveSelectionInfo(curve: PredefinedCurve): string {
+  return `n=${curve.n},  p=${curve.p},  G=(${curve.G.x}, ${curve.G.y}), curve: y² = x³ + 7 mod ${curve.p} ${curve.field === "mersenne" ? "prime field)" : "prime field"}`;
+}
+
+export function getInitialCurveSelectionState(curves: PredefinedCurve[]): InitialCurveSelectionState {
+  const selected = curves[0] ?? null;
+  if (!selected) {
+    return {
+      orderSelect: "",
+      selected: null,
+      selectedInfo: "",
+      showKeyArea: false,
+      status: "No predefined curves available.",
+      visualizationGenerator: null,
+      visualizationOrder: null,
+    };
+  }
+
+  return {
+    orderSelect: String(selected.n),
+    selected,
+    selectedInfo: curveSelectionInfo(selected),
+    showKeyArea: true,
+    status: selected.field === "mersenne" ? "Selected curve is ready (p is a prime)." : "Curve ready. Enter k to compute Q.",
+    visualizationGenerator: selected.G,
+    visualizationOrder: Number(selected.n),
+  };
 }
 
 export function quantumEstimates(n: number) {

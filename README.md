@@ -58,6 +58,27 @@ npm run typecheck
 npm run build
 ```
 
+For ECC browser parity testing against the known-good deployed site, use the production-build comparison workflow in:
+
+- `docs/testing/ecc-true-case-comparison.md`
+- `docs/testing/ecc-parity-checklist-template.md`
+
+A helper script is also available:
+
+- `./scripts/run-ecc-parity-prod.sh`
+
+And the automated browser harness can be run from `hosting/`:
+
+- `npm run test:e2e`
+
+GitHub Actions also runs the ECC browser parity harness automatically on pull requests, pushes to `main`, and manual dispatches via:
+
+- `.github/workflows/ecc-browser-parity.yml`
+
+For AI-agent-specific repository instructions, including the ECC browser parity rule, see:
+
+- `AGENTS.md`
+
 ## Project Status
 
 This repository is intended for educational and research-oriented demos, not production cryptography. The elliptic-curve code uses intentionally small finite fields so the math is visible and interactive.

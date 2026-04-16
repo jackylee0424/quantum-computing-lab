@@ -6,6 +6,7 @@ import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const shouldRenderAnalytics = Boolean(process.env.VERCEL || process.env.VERCEL_ENV)
 
 export const metadata: Metadata = {
   title: "Quantum Computing Lab",
@@ -27,7 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans antialiased`}>
         {children}
-        <Analytics />
+        {shouldRenderAnalytics ? <Analytics /> : null}
       </body>
     </html>
   )

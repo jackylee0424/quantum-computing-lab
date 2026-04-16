@@ -29,10 +29,12 @@ import {
 import {
   buildPredefinedCurves,
   controlQubitBoundsForP,
+  getInitialCurveSelectionState,
   optionLabelForCurve,
   quantumEstimates,
   recommendedControlQubitsForOrder,
   shorEstimates,
+  curveSelectionInfo,
   type PredefinedCurve,
 } from "@/lib/curves";
 import { parseManualPointInput } from "@/lib/manual-point";
@@ -179,7 +181,10 @@ function fmtPoint(P: any): string {
 }
 
 export function EccSimulatorPage() {
-  const [selected, setSelected] = useState<any>(null);
+  const initialCurves = useMemo(() => buildPredefinedCurves(), []);
+  const initialCurveSelection = useMemo(() => getInitialCurveSelectionState(initialCurves), [initialCurves]);
+
+  const [selected, setSelected] = useState<any>(initialCurveSelection.selected);
   const [publicQ, setPublicQ] = useState<any>(null);
   const [isComputingPublicQ, setIsComputingPublicQ] = useState(false);
   const [isRecoveringK, setIsRecoveringK] = useState(false);
@@ -187,22 +192,22 @@ export function EccSimulatorPage() {
   const [kInput, setKInput] = useState("");
   const [qXInput, setQXInput] = useState("");
   const [qYInput, setQYInput] = useState("");
-  const [status, setStatus] = useState("");
-  const [selectedInfo, setSelectedInfo] = useState("");
+  const [status, setStatus] = useState(initialCurveSelection.status);
+  const [selectedInfo, setSelectedInfo] = useState(initialCurveSelection.selectedInfo);
   const [pubInfo, setPubInfo] = useState("");
   const [results, setResults] = useState<React.ReactNode>(<span className="muted">No runs yet.</span>);
   const [warningsResults, setWarningsResults] = useState<React.ReactNode>(null);
   const [warnings, setWarnings] = useState("");
   const [log, setLog] = useState("");
-  const [showKeyArea, setShowKeyArea] = useState(false);
+  const [showKeyArea, setShowKeyArea] = useState(initialCurveSelection.showKeyArea);
   const [showRecover, setShowRecover] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
   const [showWarningsTitle, setShowWarningsTitle] = useState(false);
   const [showResultsTitle, setShowResultsTitle] = useState(true);
-  const [orderSelect, setOrderSelect] = useState("");
-  const [predefinedCurves, setPredefinedCurves] = useState<PredefinedCurve[]>([]);
-  const [visualizationGenerator, setVisualizationGenerator] = useState<any>(null);
-  const [visualizationOrder, setVisualizationOrder] = useState<number | null>(null);
+  const [orderSelect, setOrderSelect] = useState(initialCurveSelection.orderSelect);
+  const [predefinedCurves, setPredefinedCurves] = useState<PredefinedCurve[]>(initialCurves);
+  const [visualizationGenerator, setVisualizationGenerator] = useState<any>(initialCurveSelection.visualizationGenerator);
+  const [visualizationOrder, setVisualizationOrder] = useState<number | null>(initialCurveSelection.visualizationOrder);
   const [measurementFile, setMeasurementFile] = useState<MeasurementFile | null>(null);
   const [isRemoteMersenneTaskActive, setIsRemoteMersenneTaskActive] = useState(false);
   const [loadingToastMessage, setLoadingToastMessage] = useState("");
@@ -299,8 +304,7 @@ export function EccSimulatorPage() {
     if (mersenne) setStatus(`Selected curve is ready (p is a prime).`);
     else setStatus("Curve ready. Enter k to compute Q.");
 
-    const info = `n=${sel.n},  p=${sel.p},  G=${fmtPoint(sel.G)}, curve: y² = x³ + 7 mod ${sel.p} ${mersenne ? "prime field)" : "prime field"}`;
-    setSelectedInfo(info);
+    setSelectedInfo(curveSelectionInfo(sel));
   }, []);
 
   const effectiveControlQubits = useMemo(() => {
@@ -352,16 +356,6 @@ export function EccSimulatorPage() {
 
   // Show visualization only for p = 127 or p = 31
   const showVisualization = selected && (selected.p === 127 || selected.p === 31);
-
-  useEffect(() => {
-    const curves = buildPredefinedCurves();
-    setPredefinedCurves(curves);
-    setStatus(curves.length ? "Select a predefined curve." : "No predefined curves available.");
-    if (curves.length > 0) {
-      // Set the first curve's order as default
-      setOrderSelect(String(curves[0].n));
-    }
-  }, []);
 
   // Apply curve when orderSelect changes
   useEffect(() => {
