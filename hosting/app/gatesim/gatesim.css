@@ -212,17 +212,27 @@
   line-height: 1.55;
 }
 
-.gatesim-page .gs-mermaid-pre {
+.gatesim-page .gs-mermaid-render {
   margin: 0;
   padding: 14px;
   border-radius: 12px;
   overflow-x: auto;
-  white-space: pre;
   border: 1px solid hsla(46 90% 72% / 0.20);
   background: linear-gradient(180deg, rgba(24, 18, 5, 0.92), rgba(10, 13, 28, 0.94));
-  color: hsla(46 90% 78% / 1);
-  font-size: 12px;
-  line-height: 1.55;
+}
+
+.gatesim-page .gs-mermaid-render > div {
+  min-width: max-content;
+}
+
+.gatesim-page .gs-mermaid-render svg {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.gatesim-page .gs-mermaid-render svg text {
+  max-width: 100%;
 }
 
 .gatesim-page .gs-mermaid-notes {

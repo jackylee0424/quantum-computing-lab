@@ -5,6 +5,7 @@ import * as THREE from "three"
 import "./gatesim.css"
 import { CPHASE_PROTOTYPE_MERMAID, CPHASE_PROTOTYPE_NOTES } from "../../lib/gatesim-cphase-prototype"
 import { computeGateSimCircuit } from "../../lib/gatesim-circuit"
+import { MermaidDiagram } from "../../components/mermaid-diagram"
 
 // ── Complex number helpers ──────────────────────────────────────────────────
 function C(re: number, im = 0) { return { re, im } }
@@ -1967,7 +1968,11 @@ export default function GateSimPage() {
                 <p className="gs-mermaid-lead">
                   Mermaid sketch of the 3D gold circuit: a compact H-CU-H prototype for describing phase kickback and the evolution of quantum algorithms.
                 </p>
-                <pre className="gs-mermaid-pre" aria-label="Gold CPHASE Mermaid diagram">{CPHASE_PROTOTYPE_MERMAID}</pre>
+                <MermaidDiagram
+                  chart={CPHASE_PROTOTYPE_MERMAID}
+                  className="gs-mermaid-render"
+                  title="Gold CPHASE Mermaid diagram"
+                />
                 <ul className="gs-mermaid-notes">
                   {CPHASE_PROTOTYPE_NOTES.map((note) => (
                     <li key={note}>{note}</li>

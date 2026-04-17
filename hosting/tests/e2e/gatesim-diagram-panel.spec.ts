@@ -12,8 +12,9 @@ test.describe("/gatesim Mermaid diagram panel", () => {
     const panel = page.getByLabel("Gold CPHASE Mermaid floating panel");
     await expect(panel).toBeVisible();
     await expect(panel).toContainText("Gold /gatesim CPHASE prototype");
-    await expect(panel).toContainText("flowchart LR");
     await expect(panel).toContainText("Cleve 1998");
+    await expect(panel.locator("svg")).toBeVisible();
+    await expect(panel.getByLabel("Gold CPHASE Mermaid source")).toBeHidden();
 
     await expect(page.getByRole("button", { name: "Fit" })).toBeVisible();
   });
