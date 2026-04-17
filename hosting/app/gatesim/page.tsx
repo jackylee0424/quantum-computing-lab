@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import * as THREE from "three"
 import "./gatesim.css"
 import { CPHASE_PROTOTYPE_MERMAID, CPHASE_PROTOTYPE_NOTES } from "../../lib/gatesim-cphase-prototype"
+import { computeGateSimCircuit } from "../../lib/gatesim-circuit"
 
 // ── Complex number helpers ──────────────────────────────────────────────────
 function C(re: number, im = 0) { return { re, im } }
@@ -807,49 +808,44 @@ export default function GateSimPage() {
     }
 
     function recomputeCircuit() {
-      const b0 = C(Math.cos(inputX.theta / 2), 0)
-      const b1 = cMul(cExpI(inputX.phi), C(Math.sin(inputX.theta / 2), 0))
-      const a0 = q0InitialBit === 0 ? C(1, 0) : C(0, 0)
-      const a1 = q0InitialBit === 0 ? C(0, 0) : C(1, 0)
-      const cphaseActive = gateEnabled.cphase && q1CircuitVisible
-      const phaseGateActive = gateEnabled.phase
+      const result = computeGateSimCircuit({
+        q0InitialBit,
+        q1State: { theta: inputX.theta, phi: inputX.phi },
+        q1CircuitVisible,
+        gateEnabled: {
+          h1: gateEnabled.h1,
+          cphase: gateEnabled.cphase,
+          phase: gateEnabled.phase,
+          h2: gateEnabled.h2,
+        },
+        lambdaDeg: lambda * 180 / Math.PI,
+        phaseGateDeg: phaseGatePhi * 180 / Math.PI,
+      })
 
-      const s0 = kron2(a0, a1, b0, b1)
-      const s1 = gateEnabled.h1 ? applyHOnQ0(s0) : s0.slice()
-      const s2Base = cphaseActive ? applyControlledPhase(s1, lambda) : s1.slice()
-      const s2 = phaseGateActive ? applyPhaseOnQ0(s2Base, phaseGatePhi) : s2Base
-      const s3 = gateEnabled.h2 ? applyHOnQ0(s2) : s2.slice()
+      const [bS0q0, bS1q0, bS2q0, bS3q0] = result.blochVectors.q0
+      const [, bS1q1, bS2q1, bS3q1] = result.blochVectors.q1
 
-      const bS0 = reducedBlochVectors(s0)
-      const bS1 = reducedBlochVectors(s1)
-      const bS2 = reducedBlochVectors(s2)
-      const bS3 = reducedBlochVectors(s3)
+      stage.q0.s0.setBlochVector(new THREE.Vector3(bS0q0.x, bS0q0.y, bS0q0.z))
+      stage.q0.s1.setBlochVector(new THREE.Vector3(bS1q0.x, bS1q0.y, bS1q0.z))
+      stage.q0.s2.setBlochVector(new THREE.Vector3(bS2q0.x, bS2q0.y, bS2q0.z))
+      stage.q0.s3.setBlochVector(new THREE.Vector3(bS3q0.x, bS3q0.y, bS3q0.z))
+      stage.q1.s1.setBlochVector(new THREE.Vector3(bS1q1.x, bS1q1.y, bS1q1.z))
+      stage.q1.s2.setBlochVector(new THREE.Vector3(bS2q1.x, bS2q1.y, bS2q1.z))
+      stage.q1.s3.setBlochVector(new THREE.Vector3(bS3q1.x, bS3q1.y, bS3q1.z))
 
-      stage.q0.s0.setBlochVector(bS0.r0)
-      stage.q0.s1.setBlochVector(bS1.r0)
-      stage.q0.s2.setBlochVector(bS2.r0)
-      stage.q0.s3.setBlochVector(bS3.r0)
-      stage.q1.s1.setBlochVector(bS1.r1)
-      stage.q1.s2.setBlochVector(bS2.r1)
-      stage.q1.s3.setBlochVector(bS3.r1)
+      currentP0_q0 = result.q0Probabilities.p0
+      if (outReadoutEl) outReadoutEl.textContent = `P(q0=0)=${result.q0Probabilities.p0.toFixed(3)}  P(q0=1)=${result.q0Probabilities.p1.toFixed(3)}`
 
-      const p1_q0 = cAbs2(s3[2]) + cAbs2(s3[3])
-      const p0_q0 = 1 - p1_q0
-      currentP0_q0 = p0_q0
-      if (outReadoutEl) outReadoutEl.textContent = `P(q0=0)=${p0_q0.toFixed(3)}  P(q0=1)=${p1_q0.toFixed(3)}`
+      currentP0_q1 = result.q1Probabilities.p0
 
-      const p1_q1 = cAbs2(s3[1]) + cAbs2(s3[3])
-      const p0_q1 = 1 - p1_q1
-      currentP0_q1 = p0_q1
-
-      stageProbs_q0[0] = clamp((1 + bS0.r0.y) / 2, 0, 1)
-      stageProbs_q0[1] = clamp((1 + bS1.r0.y) / 2, 0, 1)
-      stageProbs_q0[2] = clamp((1 + bS2.r0.y) / 2, 0, 1)
-      stageProbs_q0[3] = p0_q0
-      stageProbs_q1[0] = clamp((1 + bS0.r1.y) / 2, 0, 1)
-      stageProbs_q1[1] = clamp((1 + bS1.r1.y) / 2, 0, 1)
-      stageProbs_q1[2] = clamp((1 + bS2.r1.y) / 2, 0, 1)
-      stageProbs_q1[3] = p0_q1
+      stageProbs_q0[0] = result.stageProbabilities.q0[0]
+      stageProbs_q0[1] = result.stageProbabilities.q0[1]
+      stageProbs_q0[2] = result.stageProbabilities.q0[2]
+      stageProbs_q0[3] = result.stageProbabilities.q0[3]
+      stageProbs_q1[0] = result.stageProbabilities.q1[0]
+      stageProbs_q1[1] = result.stageProbabilities.q1[1]
+      stageProbs_q1[2] = result.stageProbabilities.q1[2]
+      stageProbs_q1[3] = result.stageProbabilities.q1[3]
     }
 
     function layoutStagesCentered() {
@@ -1795,8 +1791,51 @@ export default function GateSimPage() {
     setStatus(`Ready. Adjust λ or φ, click the gate toggles, or show ${UNKNOWN_STATE_KET} to inspect the second qubit.`)
     animate()
 
+    const testApi = {
+      snapshot() {
+        const visibleSphereCount = _sphereVisKeys.reduce((count, key) => {
+          const sphere = stageFromKey(key)
+          return count + (sphere?.group?.visible ? 1 : 0)
+        }, 0)
+        return {
+          q1CircuitVisible,
+          gateEnabled: { ...gateEnabled },
+          visibleSphereCount,
+          shotCounts: {
+            q0: [shotCounts_q0[0], shotCounts_q0[1]] as [number, number],
+            q1: [shotCounts_q1[0], shotCounts_q1[1]] as [number, number],
+          },
+          photonCount: measurePhotons.length + shotCounts_q0[0] + shotCounts_q0[1] + shotCounts_q1[0] + shotCounts_q1[1],
+          outputText: outReadoutEl?.textContent ?? "",
+          q0MeasurementText: measureQ0El?.textContent ?? "",
+          q1MeasurementText: measureQ1El?.textContent ?? "",
+        }
+      },
+      setGateEnabled,
+      setLambdaDeg,
+      setPhaseGateDeg,
+      setQ1PresetMode,
+      setQ0InitialBit,
+      clearMeasurementShots() {
+        clearMeasurementPhotons(0)
+        clearMeasurementPhotons(1)
+        resetMeasurementShots()
+      },
+      spawnMeasurementPhoton(qubit = 0) {
+        if (qubit === 1 && !q1CircuitVisible) return false
+        const p0Final = qubit === 0 ? currentP0_q0 : currentP0_q1
+        const counts = qubit === 0 ? shotCounts_q0 : shotCounts_q1
+        const outcome = Math.random() < p0Final ? 0 : 1
+        counts[outcome]++
+        updateShotsDisplay(qubit)
+        return true
+      },
+    }
+    ;(window as any).__gatesimTestApi__ = testApi
+
     // ── Cleanup ─────────────────────────────────────────────────────────────
     cleanupRef.current = () => {
+      delete (window as any).__gatesimTestApi__
       disposed = true
       cancelAnimationFrame(animFrameId)
       cancelAnimationFrame(fitFrameId)
