@@ -182,6 +182,74 @@
   overflow: hidden;
 }
 
+.gatesim-page .gs-feature {
+  padding: 16px;
+}
+
+.gatesim-page .gs-feature .gs-panel-head {
+  padding: 0 0 12px;
+  margin-bottom: 12px;
+}
+
+.gatesim-page .gs-mermaid-card {
+  border-color: hsla(46 90% 72% / 0.42);
+  background: linear-gradient(
+    180deg,
+    hsla(46 90% 72% / 0.10),
+    hsla(var(--gs-card) / 0.50)
+  );
+}
+
+.gatesim-page .gs-mermaid-body {
+  display: grid;
+  gap: 12px;
+}
+
+.gatesim-page .gs-mermaid-lead {
+  margin: 0;
+  color: hsla(var(--gs-foreground) / 0.92);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.gatesim-page .gs-mermaid-pre {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  overflow-x: auto;
+  white-space: pre;
+  border: 1px solid hsla(46 90% 72% / 0.20);
+  background: linear-gradient(180deg, rgba(24, 18, 5, 0.92), rgba(10, 13, 28, 0.94));
+  color: hsla(46 90% 78% / 1);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.gatesim-page .gs-mermaid-notes {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: hsla(var(--gs-muted-foreground) / 1);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.gatesim-page .gs-diagram-panel {
+  position: fixed;
+  top: 76px;
+  right: 16px;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 92px);
+  overflow: auto;
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.gatesim-page .gs-diagram-panel[hidden] {
+  display: none !important;
+}
+
 .gatesim-page .gs-hero-left {
   padding: 26px;
   position: relative;

@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import * as THREE from "three"
 import "./gatesim.css"
+import { CPHASE_PROTOTYPE_MERMAID, CPHASE_PROTOTYPE_NOTES } from "../../lib/gatesim-cphase-prototype"
 
 // ── Complex number helpers ──────────────────────────────────────────────────
 function C(re: number, im = 0) { return { re, im } }
@@ -73,6 +74,7 @@ const SECOND_QUBIT_MINUS_KET = "|0⟩ - |1⟩"
 type Q1PresetMode = "zero" | "one" | "minus" | "psi"
 
 export default function GateSimPage() {
+  const [isDiagramOpen, setIsDiagramOpen] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fallbackRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLElement>(null)
@@ -1834,6 +1836,15 @@ export default function GateSimPage() {
               </div>
               <div className="gs-nav-actions" aria-label="View toggles">
                 <button className="gs-iconbtn" id="gs-fit-view" type="button" title="Frame the full circuit in view">Fit</button>
+                <button
+                  className="gs-iconbtn"
+                  type="button"
+                  title="Show / hide the Mermaid prototype diagram"
+                  aria-pressed={isDiagramOpen}
+                  onClick={() => setIsDiagramOpen((open) => !open)}
+                >
+                  Diagram
+                </button>
                 <button className="gs-iconbtn" ref={q0StateToggleRef} type="button" title="Toggle the first qubit between |0⟩ and |1⟩">q0 |0⟩</button>
                 <button className="gs-iconbtn" ref={q1StateCycleRef} type="button" title="Cycle the second qubit preset through |0⟩, |1⟩, |0⟩ - |1⟩, and |ψ⟩">ψ |ψ⟩</button>
                 <button className="gs-iconbtn" ref={hudToggleRef} type="button" title="Show / hide control panel">Panel</button>
@@ -1892,6 +1903,40 @@ export default function GateSimPage() {
 
             </div>
           </aside>
+
+          <section
+            aria-label="Gold CPHASE Mermaid floating panel"
+            className="gs-diagram-panel"
+            hidden={!isDiagramOpen}
+          >
+            <div className="gs-card gs-feature gs-mermaid-card">
+              <div className="gs-panel-head">
+                <div className="gs-panel-title">Gold /gatesim CPHASE prototype</div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span className="gs-badge">Cleve 1998 lens</span>
+                  <button
+                    className="gs-iconbtn"
+                    type="button"
+                    title="Close Mermaid diagram panel"
+                    onClick={() => setIsDiagramOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              <div className="gs-mermaid-body">
+                <p className="gs-mermaid-lead">
+                  Mermaid sketch of the 3D gold circuit: a compact H-CU-H prototype for describing phase kickback and the evolution of quantum algorithms.
+                </p>
+                <pre className="gs-mermaid-pre" aria-label="Gold CPHASE Mermaid diagram">{CPHASE_PROTOTYPE_MERMAID}</pre>
+                <ul className="gs-mermaid-notes">
+                  {CPHASE_PROTOTYPE_NOTES.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
         </main>
       </div>
     </div>
