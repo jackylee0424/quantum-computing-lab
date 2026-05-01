@@ -798,7 +798,7 @@ export function EccSimulatorPage() {
         let data: any = null;
         try {
           const response = await fetch(
-            `${firebaseFunctionsUrl}/buildandrunmersennefield?taskId=${encodeURIComponent(taskId)}&logCursor=${logCursor}&logMaxBytes=${logMaxBytes}`,
+            `${firebaseFunctionsUrl}/buildandrunmersennefieldv2?taskId=${encodeURIComponent(taskId)}&logCursor=${logCursor}&logMaxBytes=${logMaxBytes}`,
           );
           data = await response.json();
         } catch {
@@ -841,7 +841,7 @@ export function EccSimulatorPage() {
       let data: any = null;
       try {
         const response = await fetch(
-          `${firebaseFunctionsUrl}/buildandrunmersennefield?taskId=${encodeURIComponent(taskId)}&logCursor=${logCursor}&logMaxBytes=${logMaxBytes}`,
+          `${firebaseFunctionsUrl}/buildandrunmersennefieldv2?taskId=${encodeURIComponent(taskId)}&logCursor=${logCursor}&logMaxBytes=${logMaxBytes}`,
         );
         data = await response.json();
       } catch (err) {
@@ -1030,7 +1030,7 @@ export function EccSimulatorPage() {
 
     try {
       const response = await fetch(
-        `${firebaseFunctionsUrl}/buildandrunmersennefield`,
+        `${firebaseFunctionsUrl}/buildandrunmersennefieldv2`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
